@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//e/Evobi/tinkerbunker_backend/**)",
+      "Bash(npm install:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

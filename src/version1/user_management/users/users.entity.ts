@@ -8,7 +8,7 @@ import {
   OneToMany,
   Index,
 } from 'typeorm';
-import { AuthProvider } from '../auth-providers/auth-providers.entity';
+import { AuthProvider } from '../../(auth_management)/auth-providers/auth-providers.entity';
 
 // users.entity.ts
 @Entity('users')

@@ -9,7 +9,7 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { User } from '../users/users.entity';
+import { User } from '../../user_management/users/users.entity';
 
 export enum AuthProviderType {
   GOOGLE = 'google',
