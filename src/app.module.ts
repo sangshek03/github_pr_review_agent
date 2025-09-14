@@ -38,6 +38,8 @@ export class AppModule {
         // { path: '/api/v1/auth/login', method: RequestMethod.POST }, // Forgot
         { path: '/api/v1/auth', method: RequestMethod.POST }, // Login
         { path: '/api/v1/users', method: RequestMethod.POST }, // SignUp
+        { path: '/api/v1/auth/google', method: RequestMethod.GET }, // SignUp
+        { path: '/api/v1/auth/google/callback', method: RequestMethod.GET }, // SignUp
         { path: '/health', method: RequestMethod.GET }, // SignUp
         { path: '/api/v1/auth/forgot', method: RequestMethod.POST }, // Forgot
         { path: '/api/v1/auth/changepass', method: RequestMethod.PUT }, // ChangePassword

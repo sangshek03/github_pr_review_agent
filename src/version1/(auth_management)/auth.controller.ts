@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Post,
   Put,
+  Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
@@ -17,8 +18,9 @@ import {
   SignInDto,
   VerifyOtpDto,
 } from './auth.dto';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { AccessTokenGuard } from './guards/access-token.guard';
+import { GoogleOAuthGuard } from './guards/google-oauth.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -62,5 +64,23 @@ export class AuthController {
       status: 'Success',
       message: 'OTP verified successfully',
     };
+  }
+
+  @Get('google/callback')
+  @UseGuards(GoogleOAuthGuard)
+  async googleAuth(@Req() req: Request) {
+    // This route will redirect to Google
+  }
+
+  @Get('google')
+  @UseGuards(GoogleOAuthGuard)
+  async googleAuthRedirect(@Req() req: Request, @Res() res: Response) {
+    try {
+      const user = req.user as any;
+      return this.authService.googleLogin(user, res);
+    } catch (error) {
+      console.error('Google OAuth callback error:', error);
+      return res.redirect('http://localhost:3000/auth?status=failed');
+    }
   }
 }
