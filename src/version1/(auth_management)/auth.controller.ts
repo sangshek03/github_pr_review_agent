@@ -66,13 +66,13 @@ export class AuthController {
     };
   }
 
-  @Get('google/callback')
+  @Get('google')
   @UseGuards(GoogleOAuthGuard)
   async googleAuth(@Req() req: Request) {
     // This route will redirect to Google
   }
 
-  @Get('google')
+  @Get('google/callback')
   @UseGuards(GoogleOAuthGuard)
   async googleAuthRedirect(@Req() req: Request, @Res() res: Response) {
     try {

@@ -9,9 +9,10 @@ import {
   Index,
 } from 'typeorm';
 import { AuthProvider } from '../../(auth_management)/auth-providers/auth-providers.entity';
+import { GithubUser } from '../../pr_management/github-users/github-users.entity';
 
 // users.entity.ts
-@Entity('users')
+@Entity({ schema: 'githubagent', name: 'users' })
 export class User {
   @PrimaryGeneratedColumn('uuid')
   user_id: string;
@@ -51,4 +52,7 @@ export class User {
 
   @OneToMany(() => AuthProvider, (authProvider) => authProvider.user)
   auth_providers: AuthProvider[];
+
+  @OneToMany(() => GithubUser, (githubUser) => githubUser.user)
+  githubUsers: GithubUser[];
 }

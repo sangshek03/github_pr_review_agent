@@ -252,7 +252,7 @@ export class AuthService {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    return res.redirect('http://localhost:3001/auth?status=success');
+    return res.redirect('http://localhost:3000/dashboard');
   }
 
   private async generateTokens(userId: string) {

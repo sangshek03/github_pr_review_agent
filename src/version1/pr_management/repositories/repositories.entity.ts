@@ -9,8 +9,9 @@ import {
   Index,
 } from 'typeorm';
 import { PRReview } from '../pr-reviews/pr-reviews.entity';
+import { PrMetadata } from '../pr-metadata/pr-metadata.entity';
 
-@Entity('repositories')
+@Entity({ schema: 'githubagent', name: 'repositories' })
 export class Repository {
   @PrimaryGeneratedColumn('uuid')
   repository_id: string;
@@ -23,6 +24,33 @@ export class Repository {
 
   @Column({ type: 'varchar', length: 500, unique: true })
   repository_url: string;
+
+  @Column({ type: 'bigint', unique: true })
+  github_repo_id: number;
+
+  @Column({ type: 'varchar', length: 255, default: 'main' })
+  default_branch: string;
+
+  @Column({ type: 'boolean', default: false })
+  is_private: boolean;
+
+  @Column({ type: 'boolean', default: false })
+  is_fork: boolean;
+
+  @Column({ type: 'boolean', default: false })
+  is_archived: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  last_synced_at: Date;
+
+  @Column({ type: 'jsonb', nullable: true })
+  topics: string[]; // Array of topics
+
+  @Column({ type: 'text', nullable: true })
+  homepage: string;
+
+  @Column({ type: 'int', nullable: true })
+  size: number; // Repo size in KB
 
   @Column({ type: 'jsonb', nullable: true })
   languages: Record<string, any>;
@@ -53,4 +81,7 @@ export class Repository {
 
   @OneToMany(() => PRReview, (prReview) => prReview.repository)
   prReviews: PRReview[];
+
+  @OneToMany(() => PrMetadata, (prMetadata) => prMetadata.repository)
+  prMetadata: PrMetadata[];
 }

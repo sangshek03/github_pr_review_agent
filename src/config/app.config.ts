@@ -13,4 +13,7 @@ export default registerAs('config', () => ({
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
   // Encryption Configuration
   encryptionSecret: process.env.ENCRYPTION_SECRET || 'your-encryption-secret-key',
+  // OpenAI Configuration
+  openaiApiKey: process.env.OPENAI_API_KEY,
+  openaiModel: process.env.OPENAI_MODEL || 'gpt-4o-mini',
 }));

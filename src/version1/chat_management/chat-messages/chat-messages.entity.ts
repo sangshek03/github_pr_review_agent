@@ -8,23 +8,49 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { PRReview } from '../../pr_management/pr-reviews/pr-reviews.entity';
+import { ChatSession } from '../chat-sessions/chat-sessions.entity';
 
-export enum ChatMessageSender {
-  USER = 'user',
-  AI = 'ai',
+export enum MessageType {
+  TEXT = 'text',
+  CODE = 'code',
+  JSON = 'json',
+  MARKDOWN = 'markdown',
 }
 
-@Entity('chat_messages')
+export enum SenderType {
+  USER = 'user',
+  BOT = 'bot',
+}
+
+@Entity({ schema: 'githubagent', name: 'chat_messages' })
+@Index(['chatSession'])
+@Index(['sender_type'])
+@Index(['created_at'])
 export class ChatMessage {
   @PrimaryGeneratedColumn('uuid')
-  chat_id: string;
+  message_id: string;
 
-  @Column({ type: 'enum', enum: ChatMessageSender })
-  sender: ChatMessageSender;
+  @Column({ type: 'enum', enum: SenderType })
+  sender_type: SenderType;
 
-  @Column({ type: 'jsonb' })
-  content: any; // text, markdown, or structured JSON for code blocks
+  @Column({ type: 'enum', enum: MessageType })
+  message_type: MessageType;
+
+  @Column({ type: 'text' })
+  message_content: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  context_used: string[];
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  query_classification: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  response_metadata: {
+    followup_questions?: string[];
+    context_sources?: string[];
+    confidence_score?: number;
+  };
 
   @CreateDateColumn()
   created_at: Date;
@@ -32,7 +58,9 @@ export class ChatMessage {
   @DeleteDateColumn()
   deleted_at: Date;
 
-  @ManyToOne(() => PRReview, (prReview) => prReview.chatMessages)
-  @JoinColumn({ name: 'pr_review_id' })
-  prReview: PRReview;
+  @ManyToOne(() => ChatSession, (chatSession) => chatSession.messages, {
+    onDelete: 'CASCADE'
+  })
+  @JoinColumn({ name: 'session_id' })
+  chatSession: ChatSession;
 }
