@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
+import { ChatSession } from 'src/version1/chat_management/chat-sessions/chat-sessions.entity';
 
 export interface PRReviewRequest {
   metadata: any;
@@ -26,6 +27,7 @@ export interface PRReviewResponse {
     scalability: number;
     testing: number;
   };
+  chatSession?:string
 }
 
 @Injectable()
@@ -244,6 +246,7 @@ export class LlmService {
           scalability: 0,
           testing: 0,
         },
+        
       };
     } catch (error) {
       this.logger.error('Failed to parse OpenAI response:', error);

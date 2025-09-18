@@ -9,18 +9,20 @@ import {
   OneToMany,
   JoinColumn,
   Index,
+  OneToOne,
 } from 'typeorm';
 import { User } from '../../user_management/users/users.entity';
 import { PrMetadata } from '../../pr_management/pr-metadata/pr-metadata.entity';
 import { Repository } from '../../pr_management/repositories/repositories.entity';
 import { ChatMessage } from '../chat-messages/chat-messages.entity';
+import { PrSummary } from 'src/version1/pr_management/pr-summary/pr-summary.entity';
 
 export enum SessionType {
   PR_SPECIFIC = 'PR_SPECIFIC',
   REPOSITORY_WIDE = 'REPOSITORY_WIDE',
 }
 
-@Entity({ schema: 'githubagent', name: 'chat_sessions' })
+@Entity('chat_sessions')
 @Index(['user'])
 @Index(['prMetadata'])
 @Index(['repository'])
@@ -63,4 +65,7 @@ export class ChatSession {
 
   @OneToMany(() => ChatMessage, (chatMessage) => chatMessage.chatSession)
   messages: ChatMessage[];
+  
+  @OneToOne(() => PrSummary, (prSummary) => prSummary.chatSession)
+  summary: PrSummary;
 }

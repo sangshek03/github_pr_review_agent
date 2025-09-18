@@ -19,6 +19,7 @@ import { User } from '../../user_management/users/users.entity';
 import { JwtModule } from '@nestjs/jwt';
 import { PRReview } from '../pr-reviews/pr-reviews.entity';
 import { PrSummary } from '../pr-summary/pr-summary.entity';
+import { ChatSession } from 'src/version1/chat_management/chat-sessions/chat-sessions.entity';
 
 @Module({
   imports: [
@@ -34,11 +35,10 @@ import { PrSummary } from '../pr-summary/pr-summary.entity';
       PRReview,
       User,
       PrSummary,
-    ]),
-    JwtModule.register({
-      secret: process.env.JWT_ACCESS_SECRET || 'your-jwt-access-secret-key',
-      signOptions: { expiresIn: '15m' },
-    }),
+      ChatSession,
+      PrMetadata,
+      User
+    ])
   ],
   controllers: [PrFetchController],
   providers: [PrFetchService, PrDataService, LlmService],

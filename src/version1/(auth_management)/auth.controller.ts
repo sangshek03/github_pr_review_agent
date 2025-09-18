@@ -32,6 +32,22 @@ export class AuthController {
     return this.authService.signIn(signInDto, response);
   }
 
+  @Get('me')
+  getAuthCookie(@Req() req: Request) {
+    const authCookie = req.cookies['auth-cookie'];
+    if (!authCookie) {
+      return { user: null };
+    }
+
+    try {
+      const parsed =
+        typeof authCookie === 'string' ? JSON.parse(authCookie) : authCookie;
+      return { user: parsed };
+    } catch {
+      return { user: null };
+    }
+  }
+
   @Get('logout')
   logout(@Res() res: Response) {
     return this.authService.logout(res);

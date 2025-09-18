@@ -7,11 +7,13 @@ import {
   DeleteDateColumn,
   ManyToOne,
   JoinColumn,
+  OneToOne,
 } from 'typeorm';
 import { User } from '../../user_management/users/users.entity';
 import { PRReview } from '../pr-reviews/pr-reviews.entity';
+import { ChatSession } from 'src/version1/chat_management/chat-sessions/chat-sessions.entity';
 
-@Entity({ schema: 'githubagent', name: 'pr_summary' })
+@Entity('pr_summary')
 export class PrSummary {
   @PrimaryGeneratedColumn('uuid')
   pr_summary_id: string;
@@ -75,4 +77,11 @@ export class PrSummary {
   })
   @JoinColumn({ name: 'pr_review_id' })
   prReview: PRReview;
+
+  @OneToOne(() => ChatSession, (chatSession) => chatSession.summary, {
+    onDelete: 'CASCADE',
+    nullable: true, // allow summary without session
+  })
+  @JoinColumn({ name: 'chat_session_id' })
+  chatSession?: ChatSession;
 }

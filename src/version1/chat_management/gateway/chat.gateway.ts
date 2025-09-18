@@ -12,7 +12,7 @@ import { Logger, UseGuards } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { ChatSessionService } from '../services/chat-session.service';
 import { WebSocketAuthGuard } from './websocket-auth.guard';
-import { WebSocketEvents } from '../types/chat.types';
+import * as jwt from 'jsonwebtoken';
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
@@ -26,7 +26,9 @@ interface AuthenticatedSocket extends Socket {
   },
   namespace: '/chat',
 })
-export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+export class ChatGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
 
@@ -45,7 +47,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
     try {
       // Extract user ID from handshake or token
-      const userId = await this.extractUserIdFromSocket(client);
+      const userId = client.handshake.auth.token;;
 
       if (!userId) {
         this.logger.warn(`Client ${client.id} failed authentication`);
@@ -59,7 +61,10 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
       this.logger.log(`Client ${client.id} authenticated as user ${userId}`);
     } catch (error) {
-      this.logger.error(`Authentication failed for client ${client.id}:`, error);
+      this.logger.error(
+        `Authentication failed for client ${client.id}:`,
+        error,
+      );
       client.disconnect();
     }
   }
@@ -69,7 +74,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
     // Leave all session rooms
     if (client.sessionIds) {
-      client.sessionIds.forEach(sessionId => {
+      client.sessionIds.forEach((sessionId) => {
         this.leaveSessionRoom(client, sessionId);
       });
     }
@@ -80,22 +85,28 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   @SubscribeMessage('join_session')
   async handleJoinSession(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { session_id: string }
+    @MessageBody() data: { session_id: string },
   ) {
     try {
       if (!client.userId) {
-        client.emit('error', { code: 'UNAUTHORIZED', message: 'Not authenticated' });
+        client.emit('error', {
+          code: 'UNAUTHORIZED',
+          message: 'Not authenticated',
+        });
         return;
       }
 
       // Verify user has access to this session
       const { session } = await this.chatSessionService.getSessionWithMessages(
         data.session_id,
-        client.userId
+        client.userId,
       );
 
       if (!session) {
-        client.emit('error', { code: 'SESSION_NOT_FOUND', message: 'Session not found' });
+        client.emit('error', {
+          code: 'SESSION_NOT_FOUND',
+          message: 'Session not found',
+        });
         return;
       }
 
@@ -106,14 +117,17 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       this.logger.log(`Client ${client.id} joined session ${data.session_id}`);
     } catch (error) {
       this.logger.error(`Failed to join session:`, error);
-      client.emit('error', { code: 'JOIN_FAILED', message: 'Failed to join session' });
+      client.emit('error', {
+        code: 'JOIN_FAILED',
+        message: 'Failed to join session',
+      });
     }
   }
 
   @SubscribeMessage('leave_session')
   handleLeaveSession(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { session_id: string }
+    @MessageBody() data: { session_id: string },
   ) {
     this.leaveSessionRoom(client, data.session_id);
     client.emit('session_left', { session_id: data.session_id });
@@ -123,11 +137,14 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   @SubscribeMessage('message:send')
   async handleSendMessage(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { session_id: string; message: string }
+    @MessageBody() data: { session_id: string; message: string },
   ) {
     try {
       if (!client.userId) {
-        client.emit('error', { code: 'UNAUTHORIZED', message: 'Not authenticated' });
+        client.emit('error', {
+          code: 'UNAUTHORIZED',
+          message: 'Not authenticated',
+        });
         return;
       }
 
@@ -142,7 +159,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       const response = await this.chatSessionService.askQuestion(
         data.session_id,
         client.userId,
-        { question: data.message }
+        { question: data.message },
       );
 
       // Broadcast the new message to all clients in the session
@@ -166,12 +183,11 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         session_id: data.session_id,
         last_activity: new Date(),
       });
-
     } catch (error) {
       this.logger.error(`Failed to process message:`, error);
       client.emit('error', {
         code: 'MESSAGE_FAILED',
-        message: 'Failed to process message'
+        message: 'Failed to process message',
       });
     }
   }
@@ -179,41 +195,51 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   @SubscribeMessage('typing:start')
   handleTypingStart(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { session_id: string }
+    @MessageBody() data: { session_id: string },
   ) {
     if (!client.userId) return;
 
-    this.broadcastToSession(data.session_id, 'message:typing', {
-      session_id: data.session_id,
-      is_typing: true,
-      user_id: client.userId,
-    }, [client.id]); // Exclude the sender
+    this.broadcastToSession(
+      data.session_id,
+      'message:typing',
+      {
+        session_id: data.session_id,
+        is_typing: true,
+        user_id: client.userId,
+      },
+      [client.id],
+    ); // Exclude the sender
   }
 
   @SubscribeMessage('typing:stop')
   handleTypingStop(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { session_id: string }
+    @MessageBody() data: { session_id: string },
   ) {
     if (!client.userId) return;
 
-    this.broadcastToSession(data.session_id, 'message:typing', {
-      session_id: data.session_id,
-      is_typing: false,
-      user_id: client.userId,
-    }, [client.id]); // Exclude the sender
+    this.broadcastToSession(
+      data.session_id,
+      'message:typing',
+      {
+        session_id: data.session_id,
+        is_typing: false,
+        user_id: client.userId,
+      },
+      [client.id],
+    ); // Exclude the sender
   }
 
   @SubscribeMessage('get_session_users')
   handleGetSessionUsers(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { session_id: string }
+    @MessageBody() data: { session_id: string },
   ) {
     const sessionRoom = this.sessionRooms.get(data.session_id);
     const users = new Set<string>();
 
     if (sessionRoom) {
-      sessionRoom.forEach(socketId => {
+      sessionRoom.forEach((socketId) => {
         const socket = this.connectedClients.get(socketId);
         if (socket?.userId) {
           users.add(socket.userId);
@@ -229,39 +255,44 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   }
 
   // Helper methods
-  private async extractUserIdFromSocket(client: AuthenticatedSocket): Promise<string | null> {
-    try {
-      // Extract user ID from token in handshake headers or cookies
-      const token = client.handshake.headers.authorization ||
-                   client.handshake.auth?.token ||
-                   client.handshake.headers.cookie;
+  // private async extractUserIdFromSocket(
+  //   client: AuthenticatedSocket,
+  // ): Promise<string | null> {
+  //   try {
+  //     const token = client.handshake.auth?.token;
 
-      if (!token) {
-        return null;
-      }
+  //     if (!token) {
+  //       this.logger.warn(`No token provided by client ${client.id}`);
+  //       return null;
+  //     }
 
-      // Here you would typically validate the JWT token
-      // For now, we'll use a simple approach (in production, validate JWT properly)
-      // This is just a placeholder - implement proper JWT validation
-      return this.validateTokenAndGetUserId(token);
-    } catch (error) {
-      this.logger.error('Token validation failed:', error);
-      return null;
-    }
-  }
+  //     // ✅ Verify token with your secret
+  //     const decoded = jwt.verify(token, process.env.JWT_SECRET) as {
+  //       user_id: string;
+  //     };
 
-  private validateTokenAndGetUserId(token: string): string | null {
-    // TODO: Implement proper JWT validation
-    // This is a placeholder implementation
-    // In production, you should:
-    // 1. Verify JWT signature
-    // 2. Check expiration
-    // 3. Extract user ID from payload
+  //     return decoded.user_id;
+  //   } catch (error) {
+  //     this.logger.error(
+  //       `Token validation failed for client ${client.id}:`,
+  //       error,
+  //     );
+  //     return null;
+  //   }
+  // }
 
-    // For now, return a mock user ID for demonstration
-    // Remove this and implement proper validation
-    return 'mock-user-id';
-  }
+  // private validateTokenAndGetUserId(token: string): string | null {
+  //   // TODO: Implement proper JWT validation
+  //   // This is a placeholder implementation
+  //   // In production, you should:
+  //   // 1. Verify JWT signature
+  //   // 2. Check expiration
+  //   // 3. Extract user ID from payload
+
+  //   // For now, return a mock user ID for demonstration
+  //   // Remove this and implement proper validation
+  //   return 'mock-user-id';
+  // }
 
   private joinSessionRoom(client: AuthenticatedSocket, sessionId: string) {
     client.join(sessionId);
@@ -290,12 +321,12 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     sessionId: string,
     event: string,
     data: any,
-    excludeSocketIds: string[] = []
+    excludeSocketIds: string[] = [],
   ) {
     const sessionRoom = this.sessionRooms.get(sessionId);
     if (!sessionRoom) return;
 
-    sessionRoom.forEach(socketId => {
+    sessionRoom.forEach((socketId) => {
       if (!excludeSocketIds.includes(socketId)) {
         const socket = this.connectedClients.get(socketId);
         if (socket) {
@@ -306,7 +337,11 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   }
 
   // Public method to broadcast messages from other services
-  public broadcastMessageToSession(sessionId: string, event: string, data: any) {
+  public broadcastMessageToSession(
+    sessionId: string,
+    event: string,
+    data: any,
+  ) {
     this.broadcastToSession(sessionId, event, data);
   }
 

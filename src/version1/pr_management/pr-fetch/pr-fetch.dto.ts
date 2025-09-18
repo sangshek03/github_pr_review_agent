@@ -4,7 +4,8 @@ export class FetchPRDto {
   @IsString()
   @IsUrl()
   @Matches(/^https:\/\/github\.com\/[^\/]+\/[^\/]+\/pull\/\d+$/, {
-    message: 'Invalid GitHub PR URL format. Expected: https://github.com/{owner}/{repo}/pull/{pr_number}',
+    message:
+      'Invalid GitHub PR URL format. Expected: https://github.com/{owner}/{repo}/pull/{pr_number}',
   })
   pr_url: string;
 }
@@ -42,7 +43,7 @@ export interface PRMetadata {
   };
 }
 
-export class AnalyzeDTO{
+export class AnalyzeDTO {
   metadata: any;
   reviews: any;
   comments: any;

@@ -24,7 +24,7 @@ export enum PRReviewStatus {
   FAILED = 'failed',
 }
 
-@Entity({ schema: 'githubagent', name: 'pr_reviews' })
+@Entity('pr_reviews')
 export class PRReview {
   @PrimaryGeneratedColumn('uuid')
   pr_review_id: string;

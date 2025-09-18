@@ -13,6 +13,7 @@ import { PRReview, PRReviewStatus } from '../pr-reviews/pr-reviews.entity';
 import { User } from '../../user_management/users/users.entity';
 import { PrSummary } from '../pr-summary/pr-summary.entity';
 import { PRReviewResponse } from '../llm/llm.service';
+import { ChatSession } from 'src/version1/chat_management/chat-sessions/chat-sessions.entity';
 
 @Injectable()
 export class PrDataService {
@@ -25,6 +26,8 @@ export class PrDataService {
     private prMetadataRepo: Repository<PrMetadata>,
     @InjectRepository(GithubUser)
     private githubUserRepo: Repository<GithubUser>,
+    @InjectRepository(ChatSession)
+    private sessionRepo: Repository<ChatSession>,
     @InjectRepository(GithubPrReview)
     private githubPrReviewRepo: Repository<GithubPrReview>,
     @InjectRepository(PrComment)
@@ -719,7 +722,8 @@ export class PrDataService {
     analysisResults: PRReviewResponse,
     prUrl: string,
     userId?: string,
-    analysisModel?: string
+    analysisModel?: string,
+    // session_id?:string
   ): Promise<PrSummary> {
     try {
       // Find the PR review by URL
@@ -741,6 +745,11 @@ export class PrDataService {
         user = await this.userRepo.findOne({ where: { user_id: userId } });
       }
 
+      // let session;
+      // if(session_id){
+      //   session = await this.sessionRepo.findOne({where:{session_id:session_id}});
+      // }
+
       // Create new pr-summary entry
       const prSummary = this.prSummaryRepo.create({
         summary: analysisResults.summary,
@@ -757,6 +766,7 @@ export class PrDataService {
         analysis_timestamp: new Date(),
         user: user || prReview.user,
         prReview: prReview,
+        // chatSession:session
       });
 
       const savedSummary = await this.prSummaryRepo.save(prSummary);
@@ -777,7 +787,7 @@ export class PrDataService {
     try {
       const prSummaries = await this.prSummaryRepo.find({
         where: { user: { user_id: userId } },
-        relations: ['prReview', 'prReview.prMetadata', 'user'],
+        relations: ['prReview', 'prReview.prMetadata', 'user', 'chatSession'],
         order: { created_at: 'DESC' }
       });
 
@@ -793,6 +803,7 @@ export class PrDataService {
         well_handled_cases: summary.well_handled_cases,
         future_enhancements: summary.future_enhancements,
         code_quality_rating: summary.code_quality_rating,
+        session_id: summary.chatSession?.session_id ?? null, 
       }));
 
     } catch (error) {
@@ -814,7 +825,7 @@ export class PrDataService {
           pr_summary_id: prSummaryId,
           user: { user_id: userId }
         },
-        relations: ['prReview', 'prReview.prMetadata', 'user']
+        relations: ['prReview', 'prReview.prMetadata', 'user', 'chatSession']
       });
 
       if (!prSummary) {
@@ -836,6 +847,7 @@ export class PrDataService {
         well_handled_cases: prSummary.well_handled_cases,
         future_enhancements: prSummary.future_enhancements,
         code_quality_rating: prSummary.code_quality_rating,
+        chatSession:prSummary.chatSession?.session_id
       };
 
     } catch (error) {
