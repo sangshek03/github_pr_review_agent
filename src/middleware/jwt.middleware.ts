@@ -124,7 +124,7 @@ export class JwtMiddleware implements NestMiddleware {
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
         secret: process.env.JWT_ACCESS_SECRET || 'your-jwt-access-secret-key',
-        expiresIn: '15m',
+        expiresIn: '60m',
       }),
       this.jwtService.signAsync(payload, {
         secret: process.env.JWT_REFRESH_SECRET || 'your-jwt-refresh-secret-key',
