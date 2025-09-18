@@ -171,4 +171,11 @@ export class UsersService {
   ): Promise<boolean> {
     return bcrypt.compare(plainPassword, hashedPassword);
   }
+    async saveRefreshToken(userId: string, refreshToken: string): Promise<void> {
+    // Hash the refresh token before storing it
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+    await this.userRepository.update(userId, {
+      refresh_token: hashedRefreshToken,
+    });
+  }
 }

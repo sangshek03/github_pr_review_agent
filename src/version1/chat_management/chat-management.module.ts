@@ -10,6 +10,7 @@ import { ChatSessionService } from './services/chat-session.service';
 import { ChatLlmService } from './services/chat-llm.service';
 import { ContextRetrievalService } from './services/context-retrieval.service';
 import { QueryClassifierService } from './services/query-classifier.service';
+import { ConversationContextService } from './services/conversation-context.service';
 import { ResponseEvaluatorService } from './services/response-evaluator.service';
 import { FallbackHandlerService } from './services/fallback-handler.service';
 
@@ -54,6 +55,7 @@ import { PRCommit } from '../pr_management/pr-commits/pr-commits.entity';
     ChatLlmService,
     ContextRetrievalService,
     QueryClassifierService,
+    ConversationContextService,
     ResponseEvaluatorService,
     FallbackHandlerService,
     // Gateway and guards

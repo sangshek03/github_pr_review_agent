@@ -290,8 +290,9 @@ export class PrFetchService {
       const savedSession = await this.chatSessionRepo.save(chatSession);
 
       // Save analysis results to database
+      let savedPrSummary;
       try {
-        await this.prDataService.savePrAnalysis(
+        savedPrSummary = await this.prDataService.savePrAnalysis(
           review,
           analyzeDto.pr_url,
           userId,
@@ -307,6 +308,7 @@ export class PrFetchService {
       }
 
       return  {
+        pr_summary_id: savedPrSummary.pr_summary_id,
         summary: review.summary || 'No summary provided',
         issues_found: Array.isArray(review.issues_found)
           ? review.issues_found
@@ -342,4 +344,6 @@ export class PrFetchService {
       );
     }
   }
+
+
 }

@@ -142,4 +142,21 @@ export class PrFetchController {
       data: summary,
     };
   }
+
+    @Get('chat-session/:chat_session_id')
+  async getByChatSessionId(
+    @Param('chat_session_id') chatSessionId: string,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data: PRReviewResponse;
+  }> {
+    const summary = await this.prDataService.getSummaryByChatSessionId(chatSessionId);
+
+    return {
+      success: true,
+      message: 'PR summary',
+      data: summary
+    }
+  }
 }

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import { ChatLLMRequest, ChatLLMResponse, QueryType, QueryClassification } from '../types/chat.types';
 import { MessageType } from '../chat-messages/chat-messages.entity';
+import { ConversationContextService } from './conversation-context.service';
 
 @Injectable()
 export class ChatLlmService {
@@ -11,8 +12,12 @@ export class ChatLlmService {
   private readonly primaryModel: string = 'gpt-4o-mini';
   private readonly fallbackModel: string = 'gpt-4o';
   private readonly maxRetries: number = 3;
+  private readonly enableConversationContext: boolean = false; // Set to false to disable context temporarily
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly conversationContextService: ConversationContextService
+  ) {
     const apiKey = this.configService.get<string>('config.openaiApiKey');
 
     if (!apiKey) {
@@ -27,13 +32,14 @@ export class ChatLlmService {
     });
   }
 
-  async processChatQuery(request: ChatLLMRequest): Promise<ChatLLMResponse> {
+  async processChatQuery(request: ChatLLMRequest, sessionId?: string): Promise<ChatLLMResponse> {
     if (!this.openai) {
       return this.getFallbackResponse('OpenAI API key not configured');
     }
 
     try {
-      const prompt = this.buildChatPrompt(request);
+      const prompt = this.buildChatPrompt(request, sessionId);
+      this.logger.log('Generated prompt for OpenAI:', prompt.substring(0, 500) + '...');
 
       // Try primary model with retry logic
       let response: OpenAI.Chat.Completions.ChatCompletion;
@@ -46,7 +52,25 @@ export class ChatLlmService {
         response = await this.callWithRetry(prompt, this.fallbackModel);
       }
 
-      return this.parseOpenAIResponse(response, request.classification);
+      const parsedResponse = this.parseOpenAIResponse(response, request.classification, sessionId, request.context_data);
+
+      // Update conversation context after processing
+      if (this.enableConversationContext && sessionId && parsedResponse.answer) {
+        try {
+          this.conversationContextService.updateConversationState(
+            sessionId,
+            request.query,
+            request.classification,
+            parsedResponse.answer,
+            parsedResponse.context_used
+          );
+        } catch (contextError) {
+          this.logger.warn('Failed to update conversation context:', contextError);
+          // Continue without context update - don't break the response
+        }
+      }
+
+      return parsedResponse;
     } catch (error) {
       this.logger.error('Failed to process chat query:', error);
       return this.getFallbackResponse('Chat processing failed due to LLM service error');
@@ -102,7 +126,7 @@ export class ChatLlmService {
     }
   }
 
-  private buildChatPrompt(request: ChatLLMRequest): string {
+  private buildChatPrompt(request: ChatLLMRequest, sessionId?: string): string {
     const { query, classification, context_data, conversation_history } = request;
 
     let contextSection = '';
@@ -113,6 +137,29 @@ export class ChatLlmService {
     let conversationSection = '';
     if (conversation_history && conversation_history.length > 0) {
       conversationSection = this.formatConversationHistory(conversation_history);
+    }
+
+    // Add conversation context enhancement
+    let conversationContextSection = '';
+    if (this.enableConversationContext && sessionId) {
+      try {
+        conversationContextSection = this.conversationContextService.generateContextualPromptEnhancement(sessionId, query);
+      } catch (contextError) {
+        this.logger.warn('Failed to generate conversation context enhancement:', contextError);
+        conversationContextSection = '';
+      }
+    }
+
+    // Enhanced security analysis instructions
+    let securityInstructions = '';
+    if (classification.primary_type === QueryType.SECURITY) {
+      securityInstructions = this.buildSecurityAnalysisInstructions(context_data);
+    }
+
+    // Enhanced code analysis instructions
+    let codeAnalysisInstructions = '';
+    if (classification.primary_type === QueryType.CODE_ANALYSIS) {
+      codeAnalysisInstructions = this.buildCodeAnalysisInstructions(context_data);
     }
 
     return `You are an expert GitHub PR analysis assistant. Answer the user's question about the pull request based on the provided context.
@@ -126,24 +173,32 @@ ${contextSection}
 
 ${conversationSection}
 
-**Instructions:**
+${conversationContextSection}
+
+${securityInstructions}
+
+${codeAnalysisInstructions}
+
+**Enhanced Instructions:**
 1. Answer the question directly and accurately based on the provided context
-2. If the question is about code, provide specific examples from the files
-3. If the question is about reviews, quote relevant reviewer comments
-4. If the question is about security/performance, reference the analysis results
-5. Be concise but comprehensive
-6. If you cannot answer from the context, say so clearly
-7. Suggest 2-3 relevant follow-up questions
+2. For code questions: Reference specific file names, line numbers, functions, and provide code snippets
+3. For security questions: Identify specific vulnerabilities, assess impact, and provide remediation steps
+4. For review questions: Quote exact reviewer comments and provide context
+5. For performance questions: Identify bottlenecks and suggest specific optimizations
+6. Be comprehensive yet concise - provide actionable insights
+7. Reference specific sources (file names, reviewer names, line numbers)
+8. Avoid generic responses - be specific to this PR's context
+9. If information is incomplete, clearly state what additional context would help
 
 **Response Format:**
 Respond with ONLY a valid JSON object in this exact format:
 {
-  "answer": "Your detailed answer here",
+  "answer": "Your detailed answer with specific references (file:line) and exact quotes",
   "message_type": "text|code|json|markdown",
   "context_used": ["metadata", "files", "reviews"],
   "followup_questions": ["Question 1?", "Question 2?", "Question 3?"],
   "confidence_score": 0.85,
-  "sources": ["PR metadata", "File: auth.ts", "Review by @username"]
+  "sources": ["PR metadata", "File: auth.ts:45-67", "Review by @username: 'specific quote'"]
 }`;
   }
 
@@ -259,30 +314,137 @@ Respond with ONLY a valid JSON object:
     return formatted;
   }
 
+  private buildSecurityAnalysisInstructions(contextData: any): string {
+    if (!contextData?.summary?.security_concerns && !contextData?.files) {
+      return '';
+    }
+
+    let instructions = '\n**Security Analysis Guidelines:**\n';
+
+    if (contextData?.summary?.security_concerns?.length > 0) {
+      instructions += `- Specific security concerns found: ${contextData.summary.security_concerns.join(', ')}\n`;
+      instructions += '- For each concern, explain: What it is, Why it\'s risky, How to fix it\n';
+      instructions += '- Assess the severity level (Critical/High/Medium/Low) for each issue\n';
+    }
+
+    if (contextData?.files) {
+      instructions += '- Examine authentication, authorization, input validation, and data handling in the changed files\n';
+      instructions += '- Look for potential SQL injection, XSS, CSRF, or other common vulnerabilities\n';
+      instructions += '- Check for hardcoded secrets, weak encryption, or insecure configurations\n';
+    }
+
+    instructions += '- Provide specific remediation steps with code examples where applicable\n';
+    instructions += '- Rate the overall security impact of this PR on a 1-10 scale with justification\n';
+
+    return instructions;
+  }
+
+  private buildCodeAnalysisInstructions(contextData: any): string {
+    if (!contextData?.files) {
+      return '';
+    }
+
+    let instructions = '\n**Code Analysis Guidelines:**\n';
+
+    const files = contextData.files.files || [];
+    const largestFiles = files.slice(0, 3);
+
+    if (largestFiles.length > 0) {
+      instructions += '- Focus on these files with the most changes:\n';
+      largestFiles.forEach((file: any) => {
+        instructions += `  * ${file.filename} (+${file.additions}/-${file.deletions} lines)\n`;
+      });
+    }
+
+    instructions += '- For each significant change:\n';
+    instructions += '  * Explain what the code does and why it was changed\n';
+    instructions += '  * Identify potential bugs, edge cases, or logic issues\n';
+    instructions += '  * Assess code quality, readability, and maintainability\n';
+    instructions += '  * Suggest improvements or optimizations\n';
+    instructions += '- Reference specific functions, classes, or code blocks\n';
+    instructions += '- Include relevant code snippets in your analysis\n';
+    instructions += '- Highlight any breaking changes or API modifications\n';
+
+    return instructions;
+  }
+
   private parseOpenAIResponse(
     response: OpenAI.Chat.Completions.ChatCompletion,
-    classification: QueryClassification
+    classification: QueryClassification,
+    sessionId?: string,
+    contextData?: any
   ): ChatLLMResponse {
     try {
       const content = response.choices[0]?.message?.content;
+      this.logger.log('Raw OpenAI response content:', content);
+
       if (!content) {
         throw new Error('No content in OpenAI response');
       }
 
       const parsed = JSON.parse(content);
+      this.logger.log('Parsed OpenAI response:', parsed);
 
-      return {
-        answer: parsed.answer || 'No answer provided',
+      // Generate adaptive followup questions if none provided or if they're generic
+      let followupQuestions = Array.isArray(parsed.followup_questions)
+        ? parsed.followup_questions.slice(0, 3)
+        : [];
+
+      // Use adaptive followups if session available and current followups are generic/empty
+      if (this.enableConversationContext && sessionId && (followupQuestions.length === 0 || this.areFollowupsGeneric(followupQuestions))) {
+        try {
+          followupQuestions = this.conversationContextService.generateAdaptiveFollowups(
+            sessionId,
+            classification.primary_type,
+            contextData || {}
+          );
+        } catch (followupError) {
+          this.logger.warn('Failed to generate adaptive followups:', followupError);
+          // Keep existing followups
+        }
+      }
+
+      // Fallback to default if still empty
+      if (followupQuestions.length === 0) {
+        followupQuestions = this.generateFallbackFollowups(classification.primary_type);
+      }
+
+      // Handle both string and object answers
+      let processedAnswer = parsed.answer || 'No answer provided';
+      if (typeof processedAnswer === 'object') {
+        // If OpenAI returned a JSON object, keep it as is for JSON message types
+        if (parsed.message_type === 'json') {
+          processedAnswer = parsed.answer;
+        } else {
+          // For other message types, convert to string
+          processedAnswer = JSON.stringify(parsed.answer, null, 2);
+        }
+      }
+
+      const finalResponse = {
+        answer: processedAnswer,
         message_type: this.validateMessageType(parsed.message_type) || MessageType.TEXT,
         context_used: Array.isArray(parsed.context_used) ? parsed.context_used : [],
-        followup_questions: Array.isArray(parsed.followup_questions)
-          ? parsed.followup_questions.slice(0, 3)
-          : this.generateFallbackFollowups(classification.primary_type),
+        followup_questions: followupQuestions,
         confidence_score: typeof parsed.confidence_score === 'number'
           ? Math.max(0, Math.min(1, parsed.confidence_score))
           : 0.5,
         sources: Array.isArray(parsed.sources) ? parsed.sources : [],
       };
+
+      const answerLength = typeof finalResponse.answer === 'string'
+        ? finalResponse.answer.length
+        : JSON.stringify(finalResponse.answer).length;
+
+      this.logger.log('Final ChatLLMResponse:', {
+        hasAnswer: !!finalResponse.answer,
+        answerLength: answerLength,
+        answerType: typeof finalResponse.answer,
+        messageType: finalResponse.message_type,
+        contextUsedLength: finalResponse.context_used?.length || 0
+      });
+
+      return finalResponse;
     } catch (error) {
       this.logger.error('Failed to parse OpenAI chat response:', error);
       return this.getFallbackResponse('Failed to parse LLM response');
@@ -377,6 +539,7 @@ Respond with ONLY a valid JSON object:
   }
 
   private getFallbackResponse(reason: string): ChatLLMResponse {
+    this.logger.warn(`Using fallback response due to: ${reason}`);
     return {
       answer: `I apologize, but I'm unable to process your request right now. ${reason}`,
       message_type: MessageType.TEXT,
@@ -397,6 +560,21 @@ Respond with ONLY a valid JSON object:
       confidence: 0.5,
       context_needed: ['metadata'],
     };
+  }
+
+  private areFollowupsGeneric(followups: string[]): boolean {
+    const genericPatterns = [
+      /what.*specific/i,
+      /are there any/i,
+      /could you/i,
+      /would you like/i,
+      /what else/i,
+      /anything else/i,
+    ];
+
+    return followups.every(followup =>
+      genericPatterns.some(pattern => pattern.test(followup))
+    );
   }
 
   private delay(ms: number): Promise<void> {

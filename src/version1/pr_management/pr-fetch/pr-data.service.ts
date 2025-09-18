@@ -1,4 +1,4 @@
-import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, Logger, HttpException, HttpStatus, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Repository as RepoEntity } from '../repositories/repositories.entity';
@@ -860,5 +860,33 @@ export class PrDataService {
         HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
+  }
+
+      async getSummaryByChatSessionId(session_id: string): Promise<PRReviewResponse> {
+    const prSummary = await this.prSummaryRepo.findOne({
+      where: { chatSession: { session_id } }, // using relation property
+      relations: ['user', 'prReview', 'chatSession'],
+    });
+
+    if (!prSummary) {
+      throw new NotFoundException(
+        `PRSummary not found for chat_session_id: ${session_id}`,
+      );
+    }
+
+    return {
+        pr_summary_id: prSummary.pr_summary_id,
+        summary: prSummary.summary,
+        issues_found: prSummary.issues_found,
+        suggestions: prSummary.suggestions,
+        test_recommendations: prSummary.test_recommendations,
+        overall_score: prSummary.overall_score,
+        security_concerns: prSummary.security_concerns,
+        performance_issues: prSummary.performance_issues,
+        well_handled_cases: prSummary.well_handled_cases,
+        future_enhancements: prSummary.future_enhancements,
+        code_quality_rating: prSummary.code_quality_rating,
+        chatSession:prSummary.chatSession?.session_id
+      };;
   }
 }

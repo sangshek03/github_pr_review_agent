@@ -156,27 +156,82 @@ export class ChatGateway
       });
 
       // Process the message through the chat service
+      this.logger.log(`Processing message for session ${data.session_id}: "${data.message}"`);
       const response = await this.chatSessionService.askQuestion(
         data.session_id,
         client.userId,
         { question: data.message },
       );
+      const answerLength = typeof response?.answer === 'string'
+        ? response.answer.length
+        : (response?.answer ? JSON.stringify(response.answer).length : 0);
+
+      this.logger.log(`Received response for session ${data.session_id}:`, {
+        hasAnswer: !!response?.answer,
+        answerLength: answerLength,
+        answerType: typeof response?.answer,
+        messageType: response?.message_type,
+        contextUsed: response?.context_used?.length || 0
+      });
+
+      // Validate response structure
+      const answerContent = typeof response?.answer === 'string'
+        ? response.answer.trim()
+        : (response?.answer ? JSON.stringify(response.answer) : '');
+
+      this.logger.log('Validation check:', {
+        hasResponse: !!response,
+        hasAnswer: !!response?.answer,
+        answerContentLength: answerContent.length,
+        willPass: !(!response || !response.answer || answerContent.length === 0)
+      });
+
+      if (!response || !response.answer || answerContent.length === 0) {
+        this.logger.error('Response validation FAILED:', {
+          hasResponse: !!response,
+          hasAnswer: !!response?.answer,
+          answerType: typeof response?.answer,
+          answerContentLength: answerContent.length,
+          answerContent: response?.answer
+        });
+        client.emit('error', {
+          code: 'INVALID_RESPONSE',
+          message: 'Received invalid response from chat service',
+        });
+        return;
+      }
+
+      this.logger.log('Response validation PASSED, broadcasting message...');
+
+      // Always convert to string format for consistent frontend handling
+      const content = typeof response.answer === 'string'
+        ? response.answer
+        : JSON.stringify(response.answer, null, 2);
 
       // Broadcast the new message to all clients in the session
-      this.broadcastToSession(data.session_id, 'message:new', {
+      const broadcastData = {
         message: {
-          message_id: response.message_id,
+          message_id: response.message_id || 'unknown',
           sender_type: 'bot',
-          message_type: response.message_type,
-          message_content: response.answer,
+          message_type: response.message_type || 'text',
+          content: content, // Changed back to 'content' field name
           created_at: new Date(),
         },
         response_metadata: {
-          context_used: response.context_used,
-          followup_questions: response.followup_questions,
-          confidence_score: response.confidence_score,
+          context_used: response.context_used || [],
+          followup_questions: response.followup_questions || [],
+          confidence_score: response.confidence_score || 0.5,
         },
+      };
+
+      this.logger.log('Broadcasting message to session:', {
+        sessionId: data.session_id,
+        messageType: broadcastData.message.message_type,
+        hasContent: !!broadcastData.message.content,
+        contentLength: broadcastData.message.content?.length || 0
       });
+
+      this.broadcastToSession(data.session_id, 'message:new', broadcastData);
 
       // Update session activity
       this.broadcastToSession(data.session_id, 'session:updated', {
@@ -324,16 +379,34 @@ export class ChatGateway
     excludeSocketIds: string[] = [],
   ) {
     const sessionRoom = this.sessionRooms.get(sessionId);
-    if (!sessionRoom) return;
 
+    this.logger.log(`Broadcasting event '${event}' to session ${sessionId}:`, {
+      hasSessionRoom: !!sessionRoom,
+      connectedSockets: sessionRoom?.size || 0,
+      totalConnectedClients: this.connectedClients.size,
+      eventType: event
+    });
+
+    if (!sessionRoom) {
+      this.logger.warn(`No session room found for session ${sessionId}`);
+      return;
+    }
+
+    let messagesSent = 0;
     sessionRoom.forEach((socketId) => {
       if (!excludeSocketIds.includes(socketId)) {
         const socket = this.connectedClients.get(socketId);
         if (socket) {
           socket.emit(event, data);
+          messagesSent++;
+          this.logger.log(`Sent '${event}' to socket ${socketId}`);
+        } else {
+          this.logger.warn(`Socket ${socketId} not found in connected clients`);
         }
       }
     });
+
+    this.logger.log(`Broadcast complete: sent ${messagesSent} messages for event '${event}'`);
   }
 
   // Public method to broadcast messages from other services

@@ -9,6 +9,7 @@ import { Repository as RepoEntity } from '../../pr_management/repositories/repos
 import { ChatLlmService } from './chat-llm.service';
 import { ContextRetrievalService } from './context-retrieval.service';
 import { QueryClassifierService } from './query-classifier.service';
+import { ConversationContextService } from './conversation-context.service';
 import { ChatLLMRequest, QueryClassification } from '../types/chat.types';
 
 export interface CreateSessionDto {
@@ -50,6 +51,7 @@ export class ChatSessionService {
     private readonly chatLlmService: ChatLlmService,
     private readonly contextRetrievalService: ContextRetrievalService,
     private readonly queryClassifierService: QueryClassifierService,
+    private readonly conversationContextService: ConversationContextService,
   ) {}
 
   async createSession(
@@ -254,7 +256,7 @@ export class ChatSessionService {
       };
 
       // Process query with LLM
-      const llmResponse = await this.chatLlmService.processChatQuery(llmRequest);
+      const llmResponse = await this.chatLlmService.processChatQuery(llmRequest, sessionId);
 
       // Save bot response
       const botMessage = await this.saveMessage(
@@ -311,6 +313,10 @@ export class ChatSessionService {
       }
 
       await this.chatSessionRepo.softDelete(sessionId);
+
+      // Clean up conversation context
+      this.conversationContextService.cleanupSession(sessionId);
+
       this.logger.log(`Deleted chat session ${sessionId} for user ${userId}`);
     } catch (error) {
       if (error instanceof HttpException) {

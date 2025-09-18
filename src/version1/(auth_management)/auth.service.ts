@@ -63,6 +63,7 @@ export class AuthService {
     }
 
     const tokens = await this.generateTokens(user.user_id);
+    await this.usersService.saveRefreshToken(user.user_id, tokens.refreshToken);
 
     const auth_data = {
       refreshToken: tokens.refreshToken,
