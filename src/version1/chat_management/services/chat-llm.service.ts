@@ -105,45 +105,50 @@ export class ChatLlmService {
   private buildChatPrompt(request: ChatLLMRequest): string {
     const { query, classification, context_data, conversation_history } = request;
 
+    // Analyze conversation context for better prompting
+    const conversationContext = this.analyzeConversationContext(conversation_history || []);
+
     let contextSection = '';
     if (context_data) {
-      contextSection = this.formatContextData(context_data, classification.primary_type);
+      contextSection = this.formatContextDataDetailed(context_data, classification.primary_type, conversationContext);
     }
 
     let conversationSection = '';
     if (conversation_history && conversation_history.length > 0) {
-      conversationSection = this.formatConversationHistory(conversation_history);
+      conversationSection = this.formatConversationHistoryDetailed(conversation_history, conversationContext);
     }
 
-    return `You are an expert GitHub PR analysis assistant. Answer the user's question about the pull request based on the provided context.
+    const systemMessage = this.buildDynamicSystemMessage(classification, conversationContext);
 
-**User Question:** ${query}
+    return `${systemMessage}
 
-**Query Type:** ${classification.primary_type}
-**Confidence:** ${classification.confidence}
+**Current Question:** ${query}
+**Query Classification:** ${classification.primary_type} (confidence: ${classification.confidence})
+**Conversation Context:** ${conversationContext.summary}
 
 ${contextSection}
 
 ${conversationSection}
 
-**Instructions:**
-1. Answer the question directly and accurately based on the provided context
-2. If the question is about code, provide specific examples from the files
-3. If the question is about reviews, quote relevant reviewer comments
-4. If the question is about security/performance, reference the analysis results
-5. Be concise but comprehensive
-6. If you cannot answer from the context, say so clearly
-7. Suggest 2-3 relevant follow-up questions
+**Critical Instructions:**
+1. BE SPECIFIC: Reference actual file names, functions, line numbers from the context
+2. AVOID REPETITION: Don't repeat advice already given in conversation${conversationContext.needsNewPerspective ? ' - provide NEW insights' : ''}
+3. BUILD ON PREVIOUS: Reference and build upon previous discussion points
+4. PROVIDE ACTIONABLE STEPS: Give concrete, implementable recommendations with file names
+5. USE REAL DATA: Quote actual code snippets, reviewer comments, specific metrics
+6. NO GENERIC ADVICE: Instead of "add tests", say "add tests to ${this.extractSpecificFiles(context_data)}"
+
+${this.getSpecificInstructionsForQuery(classification.primary_type, conversationContext)}
 
 **Response Format:**
 Respond with ONLY a valid JSON object in this exact format:
 {
-  "answer": "Your detailed answer here",
+  "answer": "Specific, actionable answer referencing actual files and data",
   "message_type": "text|code|json|markdown",
-  "context_used": ["metadata", "files", "reviews"],
-  "followup_questions": ["Question 1?", "Question 2?", "Question 3?"],
+  "context_used": ["specific", "data", "sources"],
+  "followup_questions": ["Specific follow-up based on this PR context"],
   "confidence_score": 0.85,
-  "sources": ["PR metadata", "File: auth.ts", "Review by @username"]
+  "sources": ["Specific files, reviews, or data sources"]
 }`;
   }
 
@@ -401,6 +406,234 @@ Respond with ONLY a valid JSON object:
 
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  private buildDynamicSystemMessage(classification: QueryClassification, conversationContext: any): string {
+    const baseMessage = "You are an expert GitHub PR analysis assistant.";
+
+    switch (classification.primary_type) {
+      case QueryType.CODE_ANALYSIS:
+        return `${baseMessage} You specialize in code review and improvement recommendations. Always reference specific files, functions, and line numbers. Provide concrete, actionable advice based on the actual code changes in this PR.`;
+
+      case QueryType.SECURITY:
+        return `${baseMessage} You are a security specialist. Analyze the actual code changes for security vulnerabilities. Be specific about which files contain issues and provide concrete fixes.`;
+
+      case QueryType.REVIEWS:
+        return `${baseMessage} Focus on reviewer feedback analysis. Quote specific reviewer comments and provide context about their concerns and recommendations.`;
+
+      default:
+        if (conversationContext.isFollowUp) {
+          return `${baseMessage} This is a follow-up question. Build upon the previous conversation. Reference what was already discussed and provide new, additional insights.`;
+        }
+        return baseMessage;
+    }
+  }
+
+  private getSpecificInstructionsForQuery(queryType: QueryType, conversationContext: any): string {
+    const instructions = {
+      [QueryType.CODE_ANALYSIS]: `
+**Code Analysis Instructions:**
+- Analyze the actual changed files and provide specific line-by-line feedback
+- Suggest concrete refactoring opportunities with file names
+- Identify specific patterns or anti-patterns in the code
+- Reference actual function names and implementation details
+- Provide file-specific improvement recommendations`,
+
+      [QueryType.SECURITY]: `
+**Security Analysis Instructions:**
+- Point to specific files and lines with security concerns
+- Provide concrete remediation steps with code examples
+- Reference security best practices applicable to this specific codebase
+- Identify specific vulnerability types (SQL injection, XSS, etc.)`,
+
+      [QueryType.REVIEWS]: `
+**Review Analysis Instructions:**
+- Quote specific reviewer comments with attribution
+- Explain the context behind reviewer concerns
+- Reference specific files mentioned in reviews
+- Summarize action items from reviewer feedback`,
+
+      [QueryType.GENERAL]: conversationContext.isFollowUp ? `
+**Follow-up Instructions:**
+- Build upon previous conversation without repeating
+- Provide new insights not already discussed
+- Reference specific aspects of the PR not yet covered
+- Ask clarifying questions to understand user's specific needs` : `
+**General Analysis Instructions:**
+- Provide comprehensive overview with specific details
+- Focus on most impactful aspects of this PR
+- Use actual data and metrics from the context
+- Highlight key files and changes`
+    };
+
+    return instructions[queryType] || instructions[QueryType.GENERAL];
+  }
+
+  private analyzeConversationContext(history: any[]): any {
+    if (!history || history.length === 0) {
+      return {
+        isFirstMessage: true,
+        summary: "Starting new conversation about PR",
+        needsNewPerspective: false,
+        discussedTopics: []
+      };
+    }
+
+    const recentUserMessages = history
+      .filter(m => m.sender_type === 'user')
+      .slice(-3)
+      .map(m => m.message_content.toLowerCase());
+
+    const recentBotMessages = history
+      .filter(m => m.sender_type === 'bot')
+      .slice(-2)
+      .map(m => m.message_content.toLowerCase());
+
+    const discussedTopics = [];
+    const repeatedQuestions = [];
+
+    recentUserMessages.forEach(msg => {
+      if (msg.includes('improve') || msg.includes('better')) {
+        discussedTopics.push('improvement');
+      }
+      if (msg.includes('security')) {
+        discussedTopics.push('security');
+      }
+      if (msg.includes('test')) {
+        discussedTopics.push('testing');
+      }
+      // Check for repeated similar questions
+      if (recentUserMessages.filter(m => this.calculateSimilarity(m, msg) > 0.7).length > 1) {
+        repeatedQuestions.push(msg);
+      }
+    });
+
+    // Check if bot responses are repetitive
+    const botRepetitive = recentBotMessages.length > 1 &&
+      recentBotMessages.some((msg, index) =>
+        recentBotMessages.slice(index + 1).some(otherMsg =>
+          this.calculateSimilarity(msg, otherMsg) > 0.8
+        )
+      );
+
+    return {
+      isFollowUp: history.length > 0,
+      discussedTopics: [...new Set(discussedTopics)],
+      repeatedQuestions,
+      summary: discussedTopics.length > 0
+        ? `Continuing discussion about ${discussedTopics.join(', ')}`
+        : "General conversation about PR",
+      needsNewPerspective: repeatedQuestions.length > 0 || botRepetitive,
+      botBeenRepetitive: botRepetitive
+    };
+  }
+
+  private calculateSimilarity(str1: string, str2: string): number {
+    const words1 = str1.split(' ');
+    const words2 = str2.split(' ');
+    const intersection = words1.filter(word => words2.includes(word));
+    return intersection.length / Math.max(words1.length, words2.length);
+  }
+
+  private extractSpecificFiles(context_data: any): string {
+    if (!context_data) return 'relevant files';
+
+    if (context_data.files?.files) {
+      const mainFiles = context_data.files.files
+        .slice(0, 3)
+        .map((f: any) => f.filename)
+        .join(', ');
+      return mainFiles || 'changed files';
+    }
+
+    return 'relevant files';
+  }
+
+  private formatContextDataDetailed(contextData: any, queryType: QueryType, conversationContext: any): string {
+    let formatted = '**Available Context:**\n';
+
+    if (contextData.metadata) {
+      formatted += `\n**PR Metadata:**
+- Title: ${contextData.metadata.title}
+- Author: ${contextData.metadata.author?.login}
+- State: ${contextData.metadata.state}
+- Description: ${contextData.metadata.description?.substring(0, 200)}...
+- Changes: ${contextData.metadata.branches?.base?.ref} ← ${contextData.metadata.branches?.head?.ref}
+`;
+    }
+
+    if (contextData.code_analysis) {
+      formatted += `\n**Code Analysis:**
+- Total Changes: +${contextData.code_analysis.change_summary.total_additions}/-${contextData.code_analysis.change_summary.total_deletions}
+- Languages: ${contextData.code_analysis.change_summary.languages_affected?.join(', ')}
+- High Impact Files: ${contextData.code_analysis.change_summary.high_impact_files?.map((f: any) => `${f.name} (${f.changes} changes)`).join(', ')}
+`;
+
+      if (contextData.code_analysis.specific_improvements?.length > 0) {
+        formatted += `- Specific Improvements Needed: ${contextData.code_analysis.specific_improvements.join('; ')}
+`;
+      }
+    }
+
+    if (contextData.files) {
+      formatted += `\n**Files Changed (${contextData.files.total_files} files):**
+`;
+      contextData.files.files?.slice(0, 8).forEach((file: any) => {
+        formatted += `- ${file.filename} (+${file.additions}/-${file.deletions}) [${file.change_type}] ${file.language ? `(${file.language})` : ''}
+`;
+      });
+
+      if (contextData.files.analysis?.test_files_missing?.length > 0) {
+        formatted += `- Missing Tests: ${contextData.files.analysis.test_files_missing.join(', ')}
+`;
+      }
+    }
+
+    if (contextData.summary) {
+      formatted += `\n**AI Analysis Summary:**
+- Overall Score: ${contextData.summary.overall_score}/10
+- Key Issues: ${contextData.summary.issues_found?.slice(0, 3).join(', ')}
+- Security Concerns: ${contextData.summary.security_concerns?.slice(0, 2).join(', ')}
+- Performance Issues: ${contextData.summary.performance_issues?.slice(0, 2).join(', ')}
+`;
+    }
+
+    if (contextData.reviews) {
+      formatted += `\n**Reviews (${contextData.reviews.total_reviews} reviews):**
+`;
+      contextData.reviews.reviews?.slice(0, 3).forEach((review: any) => {
+        formatted += `- ${review.reviewer.login}: ${review.state} - "${review.body?.substring(0, 100)}..."
+`;
+      });
+    }
+
+    if (contextData.conversation_context && conversationContext.discussedTopics?.length > 0) {
+      formatted += `\n**Previous Discussion Points:**
+- Topics covered: ${conversationContext.discussedTopics.join(', ')}
+- Context: This is a ${conversationContext.isFollowUp ? 'follow-up' : 'initial'} question
+`;
+    }
+
+    return formatted;
+  }
+
+  private formatConversationHistoryDetailed(history: any[], conversationContext: any): string {
+    if (history.length === 0) return '';
+
+    let formatted = '\n**Recent Conversation:**\n';
+    const recentHistory = history.slice(-4); // Last 4 messages
+
+    recentHistory.forEach((message, index) => {
+      const role = message.sender_type === 'user' ? 'User' : 'Assistant';
+      const content = message.message_content.substring(0, 150);
+      formatted += `${role}: ${content}${message.message_content.length > 150 ? '...' : ''}\n`;
+    });
+
+    if (conversationContext.needsNewPerspective) {
+      formatted += '\n**Note:** User seems to be asking similar questions - provide fresh insights and avoid repetition.\n';
+    }
+
+    return formatted;
   }
 
   async validateResponse(response: ChatLLMResponse): Promise<boolean> {
