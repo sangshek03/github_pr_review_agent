@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Read(//e/Evobi/tinkerbunker_backend/**)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []
