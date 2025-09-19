@@ -73,7 +73,7 @@ export class PrSummary {
   user: User;
 
   @ManyToOne(() => PRReview, (prReview) => prReview.prSummaries, {
-    onDelete: 'CASCADE'
+    onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'pr_review_id' })
   prReview: PRReview;

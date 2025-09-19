@@ -10,7 +10,7 @@ import {
 import { PrMetadata } from '../pr-metadata/pr-metadata.entity';
 import { GithubUser } from '../github-users/github-users.entity';
 
-@Entity({  name: 'pr_assignees' })
+@Entity({ name: 'pr_assignees' })
 @Index(['pr_metadata_id'])
 @Index(['github_user_id'])
 export class PrAssignee {
@@ -26,14 +26,14 @@ export class PrAssignee {
   // Relations
   @ManyToOne(() => PrMetadata, {
     cascade: ['insert', 'update'],
-    onDelete: 'CASCADE'
+    onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'pr_metadata_id' })
   prMetadata: PrMetadata;
 
   @ManyToOne(() => GithubUser, {
     cascade: ['insert', 'update'],
-    onDelete: 'CASCADE'
+    onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'github_user_id' })
   githubUser: GithubUser;

@@ -13,7 +13,7 @@ import { PRReview } from '../pr-reviews/pr-reviews.entity';
 import { PrMetadata } from '../pr-metadata/pr-metadata.entity';
 import { GithubUser } from '../github-users/github-users.entity';
 
-@Entity({  name: 'pr_commits' })
+@Entity({ name: 'pr_commits' })
 export class PRCommit {
   @PrimaryGeneratedColumn('uuid')
   pr_commit_id: string;
@@ -69,7 +69,7 @@ export class PRCommit {
 
   @ManyToOne(() => PrMetadata, (prMetadata) => prMetadata.prCommits, {
     cascade: ['insert', 'update'],
-    onDelete: 'CASCADE'
+    onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'pr_metadata_id' })
   prMetadata: PrMetadata;
@@ -77,7 +77,7 @@ export class PRCommit {
   @ManyToOne(() => GithubUser, (githubUser) => githubUser.authoredCommits, {
     cascade: ['insert', 'update'],
     onDelete: 'SET NULL',
-    nullable: true
+    nullable: true,
   })
   @JoinColumn({ name: 'github_author_id' })
   githubAuthor: GithubUser | null;

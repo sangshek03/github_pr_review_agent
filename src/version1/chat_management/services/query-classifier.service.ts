@@ -84,17 +84,22 @@ export class QueryClassifierService {
     }
   }
 
-  private calculateConfidenceScores(query: string): Array<{ type: QueryType; confidence: number }> {
+  private calculateConfidenceScores(
+    query: string,
+  ): Array<{ type: QueryType; confidence: number }> {
     const results: Array<{ type: QueryType; confidence: number }> = [];
 
     Object.entries(this.queryPatterns).forEach(([type, patterns]) => {
       let maxConfidence = 0;
 
-      patterns.forEach(pattern => {
+      patterns.forEach((pattern) => {
         if (pattern.test(query)) {
           const match = query.match(pattern);
           if (match) {
-            const confidence = Math.min(1.0, match[0].length / query.length + 0.3);
+            const confidence = Math.min(
+              1.0,
+              match[0].length / query.length + 0.3,
+            );
             maxConfidence = Math.max(maxConfidence, confidence);
           }
         }
@@ -108,7 +113,9 @@ export class QueryClassifierService {
     return results.sort((a, b) => b.confidence - a.confidence);
   }
 
-  private findBestMatch(classifications: Array<{ type: QueryType; confidence: number }>): { type: QueryType; confidence: number } {
+  private findBestMatch(
+    classifications: Array<{ type: QueryType; confidence: number }>,
+  ): { type: QueryType; confidence: number } {
     if (classifications.length === 0) {
       return { type: QueryType.GENERAL, confidence: 0.5 };
     }
@@ -143,7 +150,9 @@ export class QueryClassifierService {
     const filters: any = {};
 
     // Extract file names
-    const fileMatches = query.match(/(\w+\.(js|ts|py|java|cpp|c|h|css|html|json|xml|yml|yaml|md))/gi);
+    const fileMatches = query.match(
+      /(\w+\.(js|ts|py|java|cpp|c|h|css|html|json|xml|yml|yaml|md))/gi,
+    );
     if (fileMatches) {
       filters.file_names = fileMatches;
     }
@@ -151,11 +160,15 @@ export class QueryClassifierService {
     // Extract user mentions
     const userMatches = query.match(/@(\w+)/g);
     if (userMatches) {
-      filters.user_mentions = userMatches.map(mention => mention.substring(1));
+      filters.user_mentions = userMatches.map((mention) =>
+        mention.substring(1),
+      );
     }
 
     // Extract date references (simple patterns)
-    const dateMatches = query.match(/(yesterday|today|last week|last month|\d{4}-\d{2}-\d{2})/gi);
+    const dateMatches = query.match(
+      /(yesterday|today|last week|last month|\d{4}-\d{2}-\d{2})/gi,
+    );
     if (dateMatches) {
       filters.date_references = dateMatches;
     }
@@ -176,7 +189,10 @@ export class QueryClassifierService {
     const lowerQuery = query.toLowerCase();
 
     // High-confidence exact matches
-    if (lowerQuery.includes('what files changed') || lowerQuery.includes('files modified')) {
+    if (
+      lowerQuery.includes('what files changed') ||
+      lowerQuery.includes('files modified')
+    ) {
       return {
         primary_type: QueryType.FILES,
         confidence: 0.95,
@@ -184,7 +200,10 @@ export class QueryClassifierService {
       };
     }
 
-    if (lowerQuery.includes('security issues') || lowerQuery.includes('security concerns')) {
+    if (
+      lowerQuery.includes('security issues') ||
+      lowerQuery.includes('security concerns')
+    ) {
       return {
         primary_type: QueryType.SECURITY,
         confidence: 0.95,
@@ -192,7 +211,10 @@ export class QueryClassifierService {
       };
     }
 
-    if (lowerQuery.includes('what did reviewers say') || lowerQuery.includes('review comments')) {
+    if (
+      lowerQuery.includes('what did reviewers say') ||
+      lowerQuery.includes('review comments')
+    ) {
       return {
         primary_type: QueryType.REVIEWS,
         confidence: 0.95,

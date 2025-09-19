@@ -1,8 +1,15 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ChatSession, SessionType } from '../chat-sessions/chat-sessions.entity';
-import { ChatMessage, SenderType, MessageType } from '../chat-messages/chat-messages.entity';
+import {
+  ChatSession,
+  SessionType,
+} from '../chat-sessions/chat-sessions.entity';
+import {
+  ChatMessage,
+  SenderType,
+  MessageType,
+} from '../chat-messages/chat-messages.entity';
 import { User } from '../../user_management/users/users.entity';
 import { PrMetadata } from '../../pr_management/pr-metadata/pr-metadata.entity';
 import { Repository as RepoEntity } from '../../pr_management/repositories/repositories.entity';
@@ -56,7 +63,7 @@ export class ChatSessionService {
 
   async createSession(
     userId: string,
-    createSessionDto: CreateSessionDto
+    createSessionDto: CreateSessionDto,
   ): Promise<ChatSession> {
     try {
       // Validate user exists
@@ -78,11 +85,12 @@ export class ChatSessionService {
         if (!prMetadata) {
           throw new HttpException(
             'PR not found. Please fetch and save the PR details first.',
-            HttpStatus.NOT_FOUND
+            HttpStatus.NOT_FOUND,
           );
         }
 
-        sessionName = createSessionDto.session_name ||
+        sessionName =
+          createSessionDto.session_name ||
           `Chat about PR #${prMetadata.pr_number}: ${prMetadata.title.substring(0, 50)}...`;
 
         repository = prMetadata.repository;
@@ -90,19 +98,20 @@ export class ChatSessionService {
         // Repository-wide session
         sessionType = SessionType.REPOSITORY_WIDE;
         repository = await this.repositoryRepo.findOne({
-          where: { repository_id: createSessionDto.repository_id }
+          where: { repository_id: createSessionDto.repository_id },
         });
 
         if (!repository) {
           throw new HttpException('Repository not found', HttpStatus.NOT_FOUND);
         }
 
-        sessionName = createSessionDto.session_name ||
+        sessionName =
+          createSessionDto.session_name ||
           `Chat about ${repository.repository_owner}/${repository.repository_name}`;
       } else {
         throw new HttpException(
           'Either pr_url or repository_id must be provided',
-          HttpStatus.BAD_REQUEST
+          HttpStatus.BAD_REQUEST,
         );
       }
 
@@ -118,7 +127,9 @@ export class ChatSessionService {
 
       const savedSession = await this.chatSessionRepo.save(chatSession);
 
-      this.logger.log(`Created chat session ${savedSession.session_id} for user ${userId}`);
+      this.logger.log(
+        `Created chat session ${savedSession.session_id} for user ${userId}`,
+      );
       return savedSession;
     } catch (error) {
       if (error instanceof HttpException) {
@@ -127,7 +138,7 @@ export class ChatSessionService {
       this.logger.error('Failed to create chat session:', error);
       throw new HttpException(
         'Failed to create chat session',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -135,10 +146,11 @@ export class ChatSessionService {
   async getUserSessions(
     userId: string,
     repositoryId?: string,
-    prMetadataId?: string
+    prMetadataId?: string,
   ): Promise<ChatSession[]> {
     try {
-      const queryBuilder = this.chatSessionRepo.createQueryBuilder('session')
+      const queryBuilder = this.chatSessionRepo
+        .createQueryBuilder('session')
         .leftJoinAndSelect('session.prMetadata', 'prMetadata')
         .leftJoinAndSelect('session.repository', 'repository')
         .leftJoinAndSelect('session.user', 'user')
@@ -146,24 +158,36 @@ export class ChatSessionService {
         .orderBy('session.last_activity', 'DESC');
 
       if (repositoryId) {
-        queryBuilder.andWhere('session.repository.repository_id = :repositoryId', { repositoryId });
+        queryBuilder.andWhere(
+          'session.repository.repository_id = :repositoryId',
+          { repositoryId },
+        );
       }
 
       if (prMetadataId) {
-        queryBuilder.andWhere('session.prMetadata.pr_metadata_id = :prMetadataId', { prMetadataId });
+        queryBuilder.andWhere(
+          'session.prMetadata.pr_metadata_id = :prMetadataId',
+          { prMetadataId },
+        );
       }
 
       return await queryBuilder.getMany();
     } catch (error) {
-      this.logger.error(`Failed to get user sessions for user ${userId}:`, error);
+      this.logger.error(
+        `Failed to get user sessions for user ${userId}:`,
+        error,
+      );
       throw new HttpException(
         'Failed to get user sessions',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
-  async getSessionWithMessages(sessionId: string, userId: string): Promise<{
+  async getSessionWithMessages(
+    sessionId: string,
+    userId: string,
+  ): Promise<{
     session: ChatSession;
     messages: ChatMessage[];
   }> {
@@ -171,9 +195,9 @@ export class ChatSessionService {
       const session = await this.chatSessionRepo.findOne({
         where: {
           session_id: sessionId,
-          user: { user_id: userId }
+          user: { user_id: userId },
         },
-        relations: ['prMetadata', 'repository', 'user']
+        relations: ['prMetadata', 'repository', 'user'],
       });
 
       if (!session) {
@@ -182,7 +206,7 @@ export class ChatSessionService {
 
       const messages = await this.chatMessageRepo.find({
         where: { chatSession: { session_id: sessionId } },
-        order: { created_at: 'ASC' }
+        order: { created_at: 'ASC' },
       });
 
       return { session, messages };
@@ -193,7 +217,7 @@ export class ChatSessionService {
       this.logger.error(`Failed to get session ${sessionId}:`, error);
       throw new HttpException(
         'Failed to get session',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -201,16 +225,16 @@ export class ChatSessionService {
   async askQuestion(
     sessionId: string,
     userId: string,
-    askQuestionDto: AskQuestionDto
+    askQuestionDto: AskQuestionDto,
   ): Promise<ChatResponse> {
     try {
       // Validate session belongs to user
       const session = await this.chatSessionRepo.findOne({
         where: {
           session_id: sessionId,
-          user: { user_id: userId }
+          user: { user_id: userId },
         },
-        relations: ['prMetadata', 'repository', 'user']
+        relations: ['prMetadata', 'repository', 'user'],
       });
 
       if (!session) {
@@ -222,28 +246,40 @@ export class ChatSessionService {
         session,
         SenderType.USER,
         MessageType.TEXT,
-        askQuestionDto.question
+        askQuestionDto.question,
       );
 
       // Classify the query
       let classification: QueryClassification;
       try {
         // Try rule-based classification first
-        classification = this.queryClassifierService.classifyQueryRuleBased(askQuestionDto.question) ||
-          await this.queryClassifierService.classifyQuery(askQuestionDto.question);
+        classification =
+          this.queryClassifierService.classifyQueryRuleBased(
+            askQuestionDto.question,
+          ) ||
+          (await this.queryClassifierService.classifyQuery(
+            askQuestionDto.question,
+          ));
       } catch (classificationError) {
-        this.logger.warn('Classification failed, using LLM fallback:', classificationError);
-        classification = await this.chatLlmService.classifyQuery(askQuestionDto.question);
+        this.logger.warn(
+          'Classification failed, using LLM fallback:',
+          classificationError,
+        );
+        classification = await this.chatLlmService.classifyQuery(
+          askQuestionDto.question,
+        );
       }
 
       // Get relevant context
-      const { context_data, context_sources } = await this.contextRetrievalService.getContextForQuery(
-        classification,
-        sessionId
-      );
+      const { context_data, context_sources } =
+        await this.contextRetrievalService.getContextForQuery(
+          classification,
+          sessionId,
+        );
 
       // Get conversation history
-      const conversationHistory = await this.getRecentConversationHistory(sessionId);
+      const conversationHistory =
+        await this.getRecentConversationHistory(sessionId);
 
       // Prepare LLM request
       const llmRequest: ChatLLMRequest = {
@@ -256,7 +292,10 @@ export class ChatSessionService {
       };
 
       // Process query with LLM
-      const llmResponse = await this.chatLlmService.processChatQuery(llmRequest, sessionId);
+      const llmResponse = await this.chatLlmService.processChatQuery(
+        llmRequest,
+        sessionId,
+      );
 
       // Save bot response
       const botMessage = await this.saveMessage(
@@ -270,7 +309,7 @@ export class ChatSessionService {
           followup_questions: llmResponse.followup_questions,
           context_sources: context_sources,
           confidence_score: llmResponse.confidence_score,
-        }
+        },
       );
 
       // Update session activity
@@ -291,10 +330,13 @@ export class ChatSessionService {
       if (error instanceof HttpException) {
         throw error;
       }
-      this.logger.error(`Failed to process question in session ${sessionId}:`, error);
+      this.logger.error(
+        `Failed to process question in session ${sessionId}:`,
+        error,
+      );
       throw new HttpException(
         'Failed to process question',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -304,8 +346,8 @@ export class ChatSessionService {
       const session = await this.chatSessionRepo.findOne({
         where: {
           session_id: sessionId,
-          user: { user_id: userId }
-        }
+          user: { user_id: userId },
+        },
       });
 
       if (!session) {
@@ -325,7 +367,7 @@ export class ChatSessionService {
       this.logger.error(`Failed to delete session ${sessionId}:`, error);
       throw new HttpException(
         'Failed to delete session',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -333,9 +375,14 @@ export class ChatSessionService {
   private async findPrMetadataByUrl(prUrl: string): Promise<PrMetadata | null> {
     try {
       // Parse PR URL to extract owner, repo, and PR number
-      const match = prUrl.match(/^https:\/\/github\.com\/([^\/]+)\/([^\/]+)\/pull\/(\d+)$/);
+      const match = prUrl.match(
+        /^https:\/\/github\.com\/([^\/]+)\/([^\/]+)\/pull\/(\d+)$/,
+      );
       if (!match) {
-        throw new HttpException('Invalid GitHub PR URL format', HttpStatus.BAD_REQUEST);
+        throw new HttpException(
+          'Invalid GitHub PR URL format',
+          HttpStatus.BAD_REQUEST,
+        );
       }
 
       const [, owner, repo, prNumber] = match;
@@ -347,9 +394,9 @@ export class ChatSessionService {
           repository: {
             repository_owner: owner,
             repository_name: repo,
-          }
+          },
         },
-        relations: ['repository']
+        relations: ['repository'],
       });
     } catch (error) {
       this.logger.error('Failed to find PR metadata by URL:', error);
@@ -364,7 +411,7 @@ export class ChatSessionService {
     content: string,
     contextUsed?: string[],
     queryClassification?: string,
-    responseMetadata?: any
+    responseMetadata?: any,
   ): Promise<ChatMessage> {
     const messageData: Partial<ChatMessage> = {
       chatSession: session,
@@ -383,7 +430,7 @@ export class ChatSessionService {
 
   private async getRecentConversationHistory(
     sessionId: string,
-    limit: number = 10
+    limit: number = 10,
   ): Promise<ChatMessage[]> {
     return await this.chatMessageRepo.find({
       where: { chatSession: { session_id: sessionId } },
@@ -399,7 +446,10 @@ export class ChatSessionService {
   }
 
   // Analytics methods
-  async getSessionAnalytics(sessionId: string, userId: string): Promise<{
+  async getSessionAnalytics(
+    sessionId: string,
+    userId: string,
+  ): Promise<{
     query_types: Record<string, number>;
     context_usage: Record<string, number>;
     avg_confidence: number;
@@ -409,8 +459,8 @@ export class ChatSessionService {
       const session = await this.chatSessionRepo.findOne({
         where: {
           session_id: sessionId,
-          user: { user_id: userId }
-        }
+          user: { user_id: userId },
+        },
       });
 
       if (!session) {
@@ -420,8 +470,8 @@ export class ChatSessionService {
       const messages = await this.chatMessageRepo.find({
         where: {
           chatSession: { session_id: sessionId },
-          sender_type: SenderType.BOT
-        }
+          sender_type: SenderType.BOT,
+        },
       });
 
       const queryTypes: Record<string, number> = {};
@@ -429,13 +479,14 @@ export class ChatSessionService {
       let totalConfidence = 0;
       let confidenceCount = 0;
 
-      messages.forEach(message => {
+      messages.forEach((message) => {
         if (message.query_classification) {
-          queryTypes[message.query_classification] = (queryTypes[message.query_classification] || 0) + 1;
+          queryTypes[message.query_classification] =
+            (queryTypes[message.query_classification] || 0) + 1;
         }
 
         if (message.context_used) {
-          message.context_used.forEach(context => {
+          message.context_used.forEach((context) => {
             contextUsage[context] = (contextUsage[context] || 0) + 1;
           });
         }
@@ -449,17 +500,21 @@ export class ChatSessionService {
       return {
         query_types: queryTypes,
         context_usage: contextUsage,
-        avg_confidence: confidenceCount > 0 ? totalConfidence / confidenceCount : 0,
+        avg_confidence:
+          confidenceCount > 0 ? totalConfidence / confidenceCount : 0,
         message_count: messages.length,
       };
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;
       }
-      this.logger.error(`Failed to get session analytics for ${sessionId}:`, error);
+      this.logger.error(
+        `Failed to get session analytics for ${sessionId}:`,
+        error,
+      );
       throw new HttpException(
         'Failed to get session analytics',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }

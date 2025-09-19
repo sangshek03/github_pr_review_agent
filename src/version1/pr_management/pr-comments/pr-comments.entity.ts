@@ -64,14 +64,14 @@ export class PrComment {
   // Relations
   @ManyToOne(() => PrMetadata, (prMetadata) => prMetadata.prComments, {
     cascade: ['insert', 'update'],
-    onDelete: 'CASCADE'
+    onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'pr_metadata_id' })
   prMetadata: PrMetadata;
 
   @ManyToOne(() => GithubUser, (githubUser) => githubUser.prComments, {
     cascade: ['insert', 'update'],
-    onDelete: 'RESTRICT'
+    onDelete: 'RESTRICT',
   })
   @JoinColumn({ name: 'author_github_user_id' })
   author: GithubUser;

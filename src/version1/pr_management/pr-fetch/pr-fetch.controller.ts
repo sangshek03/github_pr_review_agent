@@ -12,7 +12,13 @@ import {
   Param,
 } from '@nestjs/common';
 import { PrFetchService } from './pr-fetch.service';
-import { AnalyzeDTO, FetchPRDto, PRDetailsResponse, FetchAndSaveResponse, UserPRsResponse } from './pr-fetch.dto';
+import {
+  AnalyzeDTO,
+  FetchPRDto,
+  PRDetailsResponse,
+  FetchAndSaveResponse,
+  UserPRsResponse,
+} from './pr-fetch.dto';
 import { PRReviewResponse } from '../llm/llm.service';
 import { AuthCookieGuard } from './guards/auth-cookie.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -21,8 +27,9 @@ import { PrDataService } from './pr-data.service';
 @Controller('pr')
 @UseInterceptors(ClassSerializerInterceptor)
 export class PrFetchController {
-  constructor(private readonly prFetchService: PrFetchService,
-    private readonly prDataService: PrDataService
+  constructor(
+    private readonly prFetchService: PrFetchService,
+    private readonly prDataService: PrDataService,
   ) {}
 
   @Post('fetch-check')
@@ -30,7 +37,9 @@ export class PrFetchController {
   async fetchPRDetails(
     @Body(ValidationPipe) fetchPRDto: FetchPRDto,
   ): Promise<PRDetailsResponse> {
-    const prDetails = await this.prFetchService.fetchPRDetails(fetchPRDto.pr_url);
+    const prDetails = await this.prFetchService.fetchPRDetails(
+      fetchPRDto.pr_url,
+    );
 
     return {
       success: true,
@@ -48,7 +57,7 @@ export class PrFetchController {
   ): Promise<FetchAndSaveResponse> {
     const result = await this.prFetchService.fetchAndSavePRDetails(
       fetchPRDto.pr_url,
-      user.user_id
+      user.user_id,
     );
 
     return {
@@ -69,7 +78,10 @@ export class PrFetchController {
     message: string;
     data: PRReviewResponse;
   }> {
-    const analysis = await this.prFetchService.analyzePR(analyzeDto, user.user_id);
+    const analysis = await this.prFetchService.analyzePR(
+      analyzeDto,
+      user.user_id,
+    );
 
     return {
       success: true,
@@ -86,7 +98,7 @@ export class PrFetchController {
   ): Promise<UserPRsResponse> {
     const userPRs = await this.prDataService.getUserPRs(user.user_id);
 
-    const formattedPRs: PRDetailsResponse[] = userPRs.map(pr => ({
+    const formattedPRs: PRDetailsResponse[] = userPRs.map((pr) => ({
       success: true,
       message: 'PR details retrieved successfully',
       data: {
@@ -94,7 +106,7 @@ export class PrFetchController {
         reviews: pr.reviews,
         comments: pr.comments,
         files: pr.files,
-      }
+      },
     }));
 
     return {
@@ -107,14 +119,14 @@ export class PrFetchController {
   @Get('pr_summaries')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthCookieGuard)
-  async getAllPrSummaries(
-    @CurrentUser() user: { user_id: string },
-  ): Promise<{
+  async getAllPrSummaries(@CurrentUser() user: { user_id: string }): Promise<{
     success: boolean;
     message: string;
     data: PRReviewResponse[];
   }> {
-    const summaries = await this.prDataService.getAllPrSummariesByUserId(user.user_id);
+    const summaries = await this.prDataService.getAllPrSummariesByUserId(
+      user.user_id,
+    );
 
     return {
       success: true,
@@ -134,7 +146,10 @@ export class PrFetchController {
     message: string;
     data: PRReviewResponse;
   }> {
-    const summary = await this.prDataService.getPrSummaryById(prSummaryId, user.user_id);
+    const summary = await this.prDataService.getPrSummaryById(
+      prSummaryId,
+      user.user_id,
+    );
 
     return {
       success: true,
@@ -143,7 +158,7 @@ export class PrFetchController {
     };
   }
 
-    @Get('chat-session/:chat_session_id')
+  @Get('chat-session/:chat_session_id')
   async getByChatSessionId(
     @Param('chat_session_id') chatSessionId: string,
   ): Promise<{
@@ -151,12 +166,13 @@ export class PrFetchController {
     message: string;
     data: PRReviewResponse;
   }> {
-    const summary = await this.prDataService.getSummaryByChatSessionId(chatSessionId);
+    const summary =
+      await this.prDataService.getSummaryByChatSessionId(chatSessionId);
 
     return {
       success: true,
       message: 'PR summary',
-      data: summary
-    }
+      data: summary,
+    };
   }
 }

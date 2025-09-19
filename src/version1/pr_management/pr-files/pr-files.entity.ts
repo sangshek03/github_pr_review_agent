@@ -84,7 +84,7 @@ export class PRFile {
 
   @ManyToOne(() => PrMetadata, (prMetadata) => prMetadata.prFiles, {
     cascade: ['insert', 'update'],
-    onDelete: 'CASCADE'
+    onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'pr_metadata_id' })
   prMetadata: PrMetadata;

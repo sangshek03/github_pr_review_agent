@@ -307,7 +307,7 @@ export class PrFetchService {
         // Don't fail the whole request if saving fails
       }
 
-      return  {
+      return {
         pr_summary_id: savedPrSummary.pr_summary_id,
         summary: review.summary || 'No summary provided',
         issues_found: Array.isArray(review.issues_found)
@@ -332,7 +332,7 @@ export class PrFetchService {
         well_handled_cases: review.well_handled_cases || [],
         future_enhancements: review.future_enhancements || [],
         code_quality_rating: review.code_quality_rating,
-        session_id:savedSession.session_id
+        session_id: savedSession.session_id,
       };
     } catch (error) {
       if (error instanceof HttpException) {
@@ -344,6 +344,4 @@ export class PrFetchService {
       );
     }
   }
-
-
 }

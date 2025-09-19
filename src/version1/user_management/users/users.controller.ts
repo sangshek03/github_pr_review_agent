@@ -45,14 +45,13 @@ export class UsersController {
       users: UserResponseDto[];
     };
   }> {
-
     const result = await this.usersService.findAll();
 
     return {
       success: true,
       message: 'Users retrieved successfully',
       data: {
-        users: result.users
+        users: result.users,
       },
     };
   }

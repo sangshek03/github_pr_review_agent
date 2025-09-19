@@ -1,4 +1,10 @@
-import { ForbiddenException, Injectable, NestMiddleware, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NestMiddleware,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { NextFunction } from 'express';
 import { Request as ExpressRequest } from 'express';
@@ -35,7 +41,7 @@ export class JwtMiddleware implements NestMiddleware {
       const decoded = this.jwtService.verify(accessToken, {
         secret: process.env.JWT_ACCESS_SECRET || 'your-jwt-access-secret-key',
       });
-      
+
       // Attach user to request for use in controllers
       req.user = decoded;
       return next();
@@ -59,7 +65,7 @@ export class JwtMiddleware implements NestMiddleware {
     res: Response,
     next: NextFunction,
     refreshToken: string,
-    userId: string
+    userId: string,
   ) {
     if (!refreshToken) {
       return res.status(401).json({ message: 'No refresh token found' });
@@ -79,11 +85,14 @@ export class JwtMiddleware implements NestMiddleware {
 
       // IMPORTANT: You should store refresh tokens in database and validate against stored hash
       // The current approach of validating against password hash is incorrect
-      
+
       // Generate new tokens
       const tokens = await this.generateTokens(user.user_id);
 
-      await this.usersService.saveRefreshToken(user.user_id, tokens.refreshToken);
+      await this.usersService.saveRefreshToken(
+        user.user_id,
+        tokens.refreshToken,
+      );
 
       // Update the auth cookie with new tokens
       const auth_data = {
@@ -109,12 +118,16 @@ export class JwtMiddleware implements NestMiddleware {
       return next();
     } catch (refreshError) {
       console.error('Refresh token error:', refreshError);
-      
+
       if (refreshError.name === 'TokenExpiredError') {
-        return res.status(401).json({ message: 'Refresh token expired. Please login back' });
+        return res
+          .status(401)
+          .json({ message: 'Refresh token expired. Please login back' });
       }
-      
-      return res.status(401).json({ message: 'Invalid refresh token. Please login back' });
+
+      return res
+        .status(401)
+        .json({ message: 'Invalid refresh token. Please login back' });
     }
   }
 
@@ -138,6 +151,3 @@ export class JwtMiddleware implements NestMiddleware {
     };
   }
 }
-
-
-

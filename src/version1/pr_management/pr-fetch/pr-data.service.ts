@@ -1,4 +1,10 @@
-import { Injectable, Logger, HttpException, HttpStatus, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  HttpException,
+  HttpStatus,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Repository as RepoEntity } from '../repositories/repositories.entity';
@@ -52,7 +58,7 @@ export class PrDataService {
   private async upsertGithubUser(userData: any): Promise<GithubUser> {
     try {
       let githubUser = await this.githubUserRepo.findOne({
-        where: { github_id: userData.id }
+        where: { github_id: userData.id },
       });
 
       if (!githubUser) {
@@ -77,10 +83,13 @@ export class PrDataService {
 
       return await this.githubUserRepo.save(githubUser);
     } catch (error) {
-      this.logger.error(`Failed to upsert GitHub user ${userData.login}:`, error);
+      this.logger.error(
+        `Failed to upsert GitHub user ${userData.login}:`,
+        error,
+      );
       throw new HttpException(
         'Failed to save GitHub user data',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -91,7 +100,7 @@ export class PrDataService {
   private async upsertRepository(repoData: any): Promise<RepoEntity> {
     try {
       let repository = await this.repositoryRepo.findOne({
-        where: { github_repo_id: repoData.id }
+        where: { github_repo_id: repoData.id },
       });
 
       if (!repository) {
@@ -139,7 +148,7 @@ export class PrDataService {
       this.logger.error(`Failed to upsert repository ${repoData.name}:`, error);
       throw new HttpException(
         'Failed to save repository data',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -150,14 +159,14 @@ export class PrDataService {
   private async upsertPrMetadata(
     prData: any,
     repository: RepoEntity,
-    author: GithubUser
+    author: GithubUser,
   ): Promise<PrMetadata> {
     try {
       let prMetadata = await this.prMetadataRepo.findOne({
         where: {
           repository: { repository_id: repository.repository_id },
-          pr_number: prData.number
-        }
+          pr_number: prData.number,
+        },
       });
 
       const state = prData.merged_at ? 'merged' : prData.state;
@@ -189,8 +198,12 @@ export class PrDataService {
         prMetadata.state = state;
         prMetadata.draft = prData.draft || false;
         prMetadata.mergeable = prData.mergeable;
-        prMetadata.merged_at = prData.merged_at ? new Date(prData.merged_at) : null;
-        prMetadata.closed_at = prData.closed_at ? new Date(prData.closed_at) : null;
+        prMetadata.merged_at = prData.merged_at
+          ? new Date(prData.merged_at)
+          : null;
+        prMetadata.closed_at = prData.closed_at
+          ? new Date(prData.closed_at)
+          : null;
         prMetadata.base_ref = prData.base.ref;
         prMetadata.base_sha = prData.base.sha;
         prMetadata.head_ref = prData.head.ref;
@@ -200,10 +213,13 @@ export class PrDataService {
 
       return await this.prMetadataRepo.save(prMetadata);
     } catch (error) {
-      this.logger.error(`Failed to upsert PR metadata ${prData.number}:`, error);
+      this.logger.error(
+        `Failed to upsert PR metadata ${prData.number}:`,
+        error,
+      );
       throw new HttpException(
         'Failed to save PR metadata',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -213,7 +229,7 @@ export class PrDataService {
    */
   private async savePrReviews(
     reviewsData: any[],
-    prMetadata: PrMetadata
+    prMetadata: PrMetadata,
   ): Promise<GithubPrReview[]> {
     try {
       const reviews: GithubPrReview[] = [];
@@ -223,7 +239,7 @@ export class PrDataService {
         const reviewer = await this.upsertGithubUser(reviewData.user);
 
         let githubReview = await this.githubPrReviewRepo.findOne({
-          where: { github_review_id: reviewData.id }
+          where: { github_review_id: reviewData.id },
         });
 
         if (!githubReview) {
@@ -231,7 +247,9 @@ export class PrDataService {
             github_review_id: reviewData.id,
             body: reviewData.body,
             state: reviewData.state,
-            submitted_at: reviewData.submitted_at ? new Date(reviewData.submitted_at) : null,
+            submitted_at: reviewData.submitted_at
+              ? new Date(reviewData.submitted_at)
+              : null,
             commit_sha: reviewData.commit_id,
             prMetadata,
             reviewer,
@@ -239,7 +257,9 @@ export class PrDataService {
         } else {
           githubReview.body = reviewData.body;
           githubReview.state = reviewData.state;
-          githubReview.submitted_at = reviewData.submitted_at ? new Date(reviewData.submitted_at) : null;
+          githubReview.submitted_at = reviewData.submitted_at
+            ? new Date(reviewData.submitted_at)
+            : null;
           githubReview.commit_sha = reviewData.commit_id;
         }
 
@@ -252,7 +272,7 @@ export class PrDataService {
       this.logger.error('Failed to save PR reviews:', error);
       throw new HttpException(
         'Failed to save PR reviews',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -262,7 +282,7 @@ export class PrDataService {
    */
   private async savePrComments(
     commentsData: any[],
-    prMetadata: PrMetadata
+    prMetadata: PrMetadata,
   ): Promise<PrComment[]> {
     try {
       const comments: PrComment[] = [];
@@ -271,7 +291,7 @@ export class PrDataService {
         const author = await this.upsertGithubUser(commentData.user);
 
         let prComment = await this.prCommentRepo.findOne({
-          where: { github_comment_id: commentData.id }
+          where: { github_comment_id: commentData.id },
         });
 
         if (!prComment) {
@@ -304,7 +324,7 @@ export class PrDataService {
       this.logger.error('Failed to save PR comments:', error);
       throw new HttpException(
         'Failed to save PR comments',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -314,7 +334,7 @@ export class PrDataService {
    */
   private async savePrFiles(
     filesData: any[],
-    prMetadata: PrMetadata
+    prMetadata: PrMetadata,
   ): Promise<PRFile[]> {
     try {
       const files: PRFile[] = [];
@@ -323,8 +343,8 @@ export class PrDataService {
         let prFile = await this.prFileRepo.findOne({
           where: {
             prMetadata: { pr_metadata_id: prMetadata.pr_metadata_id },
-            file_path: fileData.filename
-          }
+            file_path: fileData.filename,
+          },
         });
 
         if (!prFile) {
@@ -337,7 +357,9 @@ export class PrDataService {
             patch: fileData.patch,
             file_language: this.detectLanguage(fileData.filename),
             file_size_bytes: fileData.changes || 0,
-            blob_sha: fileData.blob_url ? this.extractShaFromUrl(fileData.blob_url) : null,
+            blob_sha: fileData.blob_url
+              ? this.extractShaFromUrl(fileData.blob_url)
+              : null,
             raw_url: fileData.raw_url,
             contents_url: fileData.contents_url,
             patch_size_bytes: fileData.patch ? fileData.patch.length : null,
@@ -352,10 +374,14 @@ export class PrDataService {
           prFile.patch = fileData.patch;
           prFile.file_language = this.detectLanguage(fileData.filename);
           prFile.file_size_bytes = fileData.changes || 0;
-          prFile.blob_sha = fileData.blob_url ? this.extractShaFromUrl(fileData.blob_url) : null;
+          prFile.blob_sha = fileData.blob_url
+            ? this.extractShaFromUrl(fileData.blob_url)
+            : null;
           prFile.raw_url = fileData.raw_url;
           prFile.contents_url = fileData.contents_url;
-          prFile.patch_size_bytes = fileData.patch ? fileData.patch.length : null;
+          prFile.patch_size_bytes = fileData.patch
+            ? fileData.patch.length
+            : null;
           prFile.is_binary = this.isBinaryFile(fileData.filename);
         }
 
@@ -368,7 +394,7 @@ export class PrDataService {
       this.logger.error('Failed to save PR files:', error);
       throw new HttpException(
         'Failed to save PR files',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -380,20 +406,22 @@ export class PrDataService {
     owner: string,
     repo: string,
     prNumber: string,
-    prMetadata: PrMetadata
+    prMetadata: PrMetadata,
   ): Promise<PRCommit[]> {
     try {
       // Fetch commits from GitHub API
       const commitsUrl = `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/commits`;
       const response = await fetch(commitsUrl, {
         headers: {
-          'Accept': 'application/vnd.github.v3+json',
+          Accept: 'application/vnd.github.v3+json',
           'User-Agent': 'PR-Agent-Backend/1.0.0',
         },
       });
 
       if (!response.ok) {
-        this.logger.warn(`Failed to fetch commits for PR ${prNumber}: ${response.statusText}`);
+        this.logger.warn(
+          `Failed to fetch commits for PR ${prNumber}: ${response.statusText}`,
+        );
         return [];
       }
 
@@ -401,10 +429,12 @@ export class PrDataService {
       const commits: PRCommit[] = [];
 
       for (const commitData of commitsData) {
-        const author = commitData.author ? await this.upsertGithubUser(commitData.author) : null;
+        const author = commitData.author
+          ? await this.upsertGithubUser(commitData.author)
+          : null;
 
         let prCommit = await this.prCommitRepo.findOne({
-          where: { commit_sha: commitData.sha }
+          where: { commit_sha: commitData.sha },
         });
 
         if (!prCommit) {
@@ -414,7 +444,8 @@ export class PrDataService {
             author: commitData.commit.author.name,
             author_email: commitData.commit.author.email,
             committed_at: new Date(commitData.commit.author.date),
-            parent_sha: commitData.parents.length > 0 ? commitData.parents[0].sha : null,
+            parent_sha:
+              commitData.parents.length > 0 ? commitData.parents[0].sha : null,
             commit_url: commitData.html_url,
             additions: commitData.stats?.additions || 0,
             deletions: commitData.stats?.deletions || 0,
@@ -429,7 +460,8 @@ export class PrDataService {
           prCommit.author = commitData.commit.author.name;
           prCommit.author_email = commitData.commit.author.email;
           prCommit.committed_at = new Date(commitData.commit.author.date);
-          prCommit.parent_sha = commitData.parents.length > 0 ? commitData.parents[0].sha : null;
+          prCommit.parent_sha =
+            commitData.parents.length > 0 ? commitData.parents[0].sha : null;
           prCommit.commit_url = commitData.html_url;
           prCommit.additions = commitData.stats?.additions || 0;
           prCommit.deletions = commitData.stats?.deletions || 0;
@@ -463,9 +495,11 @@ export class PrDataService {
     owner: string,
     repo: string,
     prNumber: string,
-    userId?: string
+    userId?: string,
   ) {
-    this.logger.log(`Starting to save PR data for ${owner}/${repo}#${prNumber}`);
+    this.logger.log(
+      `Starting to save PR data for ${owner}/${repo}#${prNumber}`,
+    );
 
     try {
       // 1. Save repository
@@ -475,7 +509,11 @@ export class PrDataService {
       const author = await this.upsertGithubUser(prData.metadata.user);
 
       // 3. Save PR metadata
-      const prMetadata = await this.upsertPrMetadata(prData.metadata, repository, author);
+      const prMetadata = await this.upsertPrMetadata(
+        prData.metadata,
+        repository,
+        author,
+      );
 
       // 4. Save PR reviews, comments, files, and commits in parallel
       const [reviews, comments, files, commits] = await Promise.all([
@@ -488,13 +526,22 @@ export class PrDataService {
       // 6. Create PR review entry if user is provided
       let prReview;
       if (userId) {
-        const user = await this.userRepo.findOne({ where: { user_id: userId } });
+        const user = await this.userRepo.findOne({
+          where: { user_id: userId },
+        });
         if (user) {
-          prReview = await this.createPrReview(prMetadata, repository, user, prData.metadata);
+          prReview = await this.createPrReview(
+            prMetadata,
+            repository,
+            user,
+            prData.metadata,
+          );
         }
       }
 
-      this.logger.log(`Successfully saved PR data for ${owner}/${repo}#${prNumber}`);
+      this.logger.log(
+        `Successfully saved PR data for ${owner}/${repo}#${prNumber}`,
+      );
 
       return {
         prMetadata,
@@ -507,7 +554,10 @@ export class PrDataService {
         prReview,
       };
     } catch (error) {
-      this.logger.error(`Failed to save PR data for ${owner}/${repo}#${prNumber}:`, error);
+      this.logger.error(
+        `Failed to save PR data for ${owner}/${repo}#${prNumber}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -519,15 +569,15 @@ export class PrDataService {
     prMetadata: PrMetadata,
     repository: RepoEntity,
     user: User,
-    githubPrData: any
+    githubPrData: any,
   ): Promise<PRReview> {
     try {
       // Check if PR review already exists for this user and PR
       let prReview = await this.prReviewRepo.findOne({
         where: {
           prMetadata: { pr_metadata_id: prMetadata.pr_metadata_id },
-          user: { user_id: user.user_id }
-        }
+          user: { user_id: user.user_id },
+        },
       });
 
       if (!prReview) {
@@ -556,7 +606,7 @@ export class PrDataService {
       this.logger.error('Failed to create PR review:', error);
       throw new HttpException(
         'Failed to create PR review',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -579,12 +629,12 @@ export class PrDataService {
           'prMetadata.prFiles',
           'prMetadata.prCommits',
           'prMetadata.prCommits.githubAuthor',
-          'repository'
+          'repository',
         ],
-        order: { created_at: 'DESC' }
+        order: { created_at: 'DESC' },
       });
 
-      return prReviews.map(review => ({
+      return prReviews.map((review) => ({
         pr_review_id: review.pr_review_id,
         pr_url: review.pr_url,
         status: review.status,
@@ -619,45 +669,48 @@ export class PrDataService {
             sha: review.prMetadata.head_sha,
           },
         },
-        reviews: review.prMetadata.githubPrReviews?.map(ghReview => ({
-          id: ghReview.github_review_id,
-          user: {
-            login: ghReview.reviewer.login,
-            avatar_url: ghReview.reviewer.avatar_url,
-          },
-          body: ghReview.body,
-          state: ghReview.state,
-          submitted_at: ghReview.submitted_at?.toISOString() || null,
-        })) || [],
-        comments: review.prMetadata.prComments?.map(comment => ({
-          id: comment.github_comment_id,
-          user: {
-            login: comment.author.login,
-            avatar_url: comment.author.avatar_url,
-          },
-          body: comment.body,
-          created_at: comment.github_created_at.toISOString(),
-          updated_at: comment.github_updated_at.toISOString(),
-        })) || [],
-        files: review.prMetadata.prFiles?.map(file => ({
-          filename: file.file_path,
-          additions: file.additions,
-          deletions: file.deletions,
-          changes: file.additions + file.deletions,
-          status: file.change_type,
-          patch: file.patch,
-        })) || [],
+        reviews:
+          review.prMetadata.githubPrReviews?.map((ghReview) => ({
+            id: ghReview.github_review_id,
+            user: {
+              login: ghReview.reviewer.login,
+              avatar_url: ghReview.reviewer.avatar_url,
+            },
+            body: ghReview.body,
+            state: ghReview.state,
+            submitted_at: ghReview.submitted_at?.toISOString() || null,
+          })) || [],
+        comments:
+          review.prMetadata.prComments?.map((comment) => ({
+            id: comment.github_comment_id,
+            user: {
+              login: comment.author.login,
+              avatar_url: comment.author.avatar_url,
+            },
+            body: comment.body,
+            created_at: comment.github_created_at.toISOString(),
+            updated_at: comment.github_updated_at.toISOString(),
+          })) || [],
+        files:
+          review.prMetadata.prFiles?.map((file) => ({
+            filename: file.file_path,
+            additions: file.additions,
+            deletions: file.deletions,
+            changes: file.additions + file.deletions,
+            status: file.change_type,
+            patch: file.patch,
+          })) || [],
         repository: {
           name: review.prMetadata.repository.repository_name,
           owner: review.prMetadata.repository.repository_owner,
           url: review.prMetadata.repository.repository_url,
-        }
+        },
       }));
     } catch (error) {
       this.logger.error(`Failed to get user PRs for user ${userId}:`, error);
       throw new HttpException(
         'Failed to get user PRs',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -670,44 +723,65 @@ export class PrDataService {
     if (!extension) return null;
 
     const languageMap: { [key: string]: string } = {
-      'ts': 'TypeScript',
-      'js': 'JavaScript',
-      'py': 'Python',
-      'java': 'Java',
-      'cpp': 'C++',
-      'c': 'C',
-      'cs': 'C#',
-      'rb': 'Ruby',
-      'php': 'PHP',
-      'go': 'Go',
-      'rs': 'Rust',
-      'kt': 'Kotlin',
-      'swift': 'Swift',
-      'html': 'HTML',
-      'css': 'CSS',
-      'scss': 'SCSS',
-      'less': 'LESS',
-      'json': 'JSON',
-      'xml': 'XML',
-      'yml': 'YAML',
-      'yaml': 'YAML',
-      'md': 'Markdown',
-      'sql': 'SQL',
+      ts: 'TypeScript',
+      js: 'JavaScript',
+      py: 'Python',
+      java: 'Java',
+      cpp: 'C++',
+      c: 'C',
+      cs: 'C#',
+      rb: 'Ruby',
+      php: 'PHP',
+      go: 'Go',
+      rs: 'Rust',
+      kt: 'Kotlin',
+      swift: 'Swift',
+      html: 'HTML',
+      css: 'CSS',
+      scss: 'SCSS',
+      less: 'LESS',
+      json: 'JSON',
+      xml: 'XML',
+      yml: 'YAML',
+      yaml: 'YAML',
+      md: 'Markdown',
+      sql: 'SQL',
     };
     return languageMap[extension] || 'Unknown';
   }
 
   private isBinaryFile(filename: string): boolean {
     const binaryExtensions = [
-      '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.ico', '.svg',
-      '.pdf', '.zip', '.tar', '.gz', '.rar', '.7z',
-      '.exe', '.dll', '.so', '.dylib',
-      '.mp3', '.mp4', '.avi', '.mov', '.wav',
-      '.ttf', '.woff', '.woff2', '.eot'
+      '.png',
+      '.jpg',
+      '.jpeg',
+      '.gif',
+      '.bmp',
+      '.ico',
+      '.svg',
+      '.pdf',
+      '.zip',
+      '.tar',
+      '.gz',
+      '.rar',
+      '.7z',
+      '.exe',
+      '.dll',
+      '.so',
+      '.dylib',
+      '.mp3',
+      '.mp4',
+      '.avi',
+      '.mov',
+      '.wav',
+      '.ttf',
+      '.woff',
+      '.woff2',
+      '.eot',
     ];
 
     const lowerFilename = filename.toLowerCase();
-    return binaryExtensions.some(ext => lowerFilename.endsWith(ext));
+    return binaryExtensions.some((ext) => lowerFilename.endsWith(ext));
   }
 
   private extractShaFromUrl(url: string): string | null {
@@ -729,13 +803,13 @@ export class PrDataService {
       // Find the PR review by URL
       const prReview = await this.prReviewRepo.findOne({
         where: { pr_url: prUrl },
-        relations: ['user']
+        relations: ['user'],
       });
 
       if (!prReview) {
         throw new HttpException(
           'PR review not found for the given URL',
-          HttpStatus.NOT_FOUND
+          HttpStatus.NOT_FOUND,
         );
       }
 
@@ -773,7 +847,6 @@ export class PrDataService {
 
       this.logger.log(`Successfully saved PR analysis for PR: ${prUrl}`);
       return savedSummary;
-
     } catch (error) {
       this.logger.error(`Failed to save PR analysis for ${prUrl}:`, error);
       throw error;
@@ -788,10 +861,10 @@ export class PrDataService {
       const prSummaries = await this.prSummaryRepo.find({
         where: { user: { user_id: userId } },
         relations: ['prReview', 'prReview.prMetadata', 'user', 'chatSession'],
-        order: { created_at: 'DESC' }
+        order: { created_at: 'DESC' },
       });
 
-      return prSummaries.map(summary => ({
+      return prSummaries.map((summary) => ({
         pr_summary_id: summary.pr_summary_id,
         summary: summary.summary,
         issues_found: summary.issues_found,
@@ -803,14 +876,16 @@ export class PrDataService {
         well_handled_cases: summary.well_handled_cases,
         future_enhancements: summary.future_enhancements,
         code_quality_rating: summary.code_quality_rating,
-        session_id: summary.chatSession?.session_id ?? null, 
+        session_id: summary.chatSession?.session_id ?? null,
       }));
-
     } catch (error) {
-      this.logger.error(`Failed to get PR summaries for user ${userId}:`, error);
+      this.logger.error(
+        `Failed to get PR summaries for user ${userId}:`,
+        error,
+      );
       throw new HttpException(
         'Failed to get PR summaries',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -818,21 +893,21 @@ export class PrDataService {
   /**
    * Get specific PR summary by pr_summary_id
    */
-  async getPrSummaryById(prSummaryId: string, userId: string): Promise<PRReviewResponse> {
+  async getPrSummaryById(
+    prSummaryId: string,
+    userId: string,
+  ): Promise<PRReviewResponse> {
     try {
       const prSummary = await this.prSummaryRepo.findOne({
         where: {
           pr_summary_id: prSummaryId,
-          user: { user_id: userId }
+          user: { user_id: userId },
         },
-        relations: ['prReview', 'prReview.prMetadata', 'user', 'chatSession']
+        relations: ['prReview', 'prReview.prMetadata', 'user', 'chatSession'],
       });
 
       if (!prSummary) {
-        throw new HttpException(
-          'PR summary not found',
-          HttpStatus.NOT_FOUND
-        );
+        throw new HttpException('PR summary not found', HttpStatus.NOT_FOUND);
       }
 
       return {
@@ -847,22 +922,26 @@ export class PrDataService {
         well_handled_cases: prSummary.well_handled_cases,
         future_enhancements: prSummary.future_enhancements,
         code_quality_rating: prSummary.code_quality_rating,
-        chatSession:prSummary.chatSession?.session_id
+        chatSession: prSummary.chatSession?.session_id,
       };
-
     } catch (error) {
-      this.logger.error(`Failed to get PR summary ${prSummaryId} for user ${userId}:`, error);
+      this.logger.error(
+        `Failed to get PR summary ${prSummaryId} for user ${userId}:`,
+        error,
+      );
       if (error instanceof HttpException) {
         throw error;
       }
       throw new HttpException(
         'Failed to get PR summary',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
-      async getSummaryByChatSessionId(session_id: string): Promise<PRReviewResponse> {
+  async getSummaryByChatSessionId(
+    session_id: string,
+  ): Promise<PRReviewResponse> {
     const prSummary = await this.prSummaryRepo.findOne({
       where: { chatSession: { session_id } }, // using relation property
       relations: ['user', 'prReview', 'chatSession'],
@@ -875,18 +954,18 @@ export class PrDataService {
     }
 
     return {
-        pr_summary_id: prSummary.pr_summary_id,
-        summary: prSummary.summary,
-        issues_found: prSummary.issues_found,
-        suggestions: prSummary.suggestions,
-        test_recommendations: prSummary.test_recommendations,
-        overall_score: prSummary.overall_score,
-        security_concerns: prSummary.security_concerns,
-        performance_issues: prSummary.performance_issues,
-        well_handled_cases: prSummary.well_handled_cases,
-        future_enhancements: prSummary.future_enhancements,
-        code_quality_rating: prSummary.code_quality_rating,
-        chatSession:prSummary.chatSession?.session_id
-      };;
+      pr_summary_id: prSummary.pr_summary_id,
+      summary: prSummary.summary,
+      issues_found: prSummary.issues_found,
+      suggestions: prSummary.suggestions,
+      test_recommendations: prSummary.test_recommendations,
+      overall_score: prSummary.overall_score,
+      security_concerns: prSummary.security_concerns,
+      performance_issues: prSummary.performance_issues,
+      well_handled_cases: prSummary.well_handled_cases,
+      future_enhancements: prSummary.future_enhancements,
+      code_quality_rating: prSummary.code_quality_rating,
+      chatSession: prSummary.chatSession?.session_id,
+    };
   }
 }

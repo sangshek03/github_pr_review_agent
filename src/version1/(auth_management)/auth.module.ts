@@ -20,7 +20,12 @@ import { AuthProvider } from './auth-providers/auth-providers.entity';
     }),
     TypeOrmModule.forFeature([User, AuthProvider]),
   ],
-  providers: [AuthService, AccessTokenStrategy, RefreshTokenStrategy, GoogleStrategy],
+  providers: [
+    AuthService,
+    AccessTokenStrategy,
+    RefreshTokenStrategy,
+    GoogleStrategy,
+  ],
   controllers: [AuthController],
   exports: [AuthService],
 })

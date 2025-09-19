@@ -96,14 +96,14 @@ export class PrMetadata {
   // Relations
   @ManyToOne(() => Repository, (repository) => repository.prMetadata, {
     cascade: ['insert', 'update'],
-    onDelete: 'RESTRICT'
+    onDelete: 'RESTRICT',
   })
   @JoinColumn({ name: 'repository_id' })
   repository: Repository;
 
   @ManyToOne(() => GithubUser, (githubUser) => githubUser.authoredPrs, {
     cascade: ['insert', 'update'],
-    onDelete: 'RESTRICT'
+    onDelete: 'RESTRICT',
   })
   @JoinColumn({ name: 'author_github_user_id' })
   author: GithubUser;
@@ -111,7 +111,10 @@ export class PrMetadata {
   @OneToMany(() => PRReview, (prReview) => prReview.prMetadata)
   prReviews: PRReview[];
 
-  @OneToMany(() => GithubPrReview, (githubPrReview) => githubPrReview.prMetadata)
+  @OneToMany(
+    () => GithubPrReview,
+    (githubPrReview) => githubPrReview.prMetadata,
+  )
   githubPrReviews: GithubPrReview[];
 
   @OneToMany(() => PrComment, (prComment) => prComment.prMetadata)
@@ -126,16 +129,28 @@ export class PrMetadata {
   @ManyToMany(() => PrLabel, (prLabel) => prLabel.prMetadata)
   @JoinTable({
     name: 'pr_metadata_labels',
-    joinColumn: { name: 'pr_metadata_id', referencedColumnName: 'pr_metadata_id' },
-    inverseJoinColumn: { name: 'pr_label_id', referencedColumnName: 'pr_label_id' }
+    joinColumn: {
+      name: 'pr_metadata_id',
+      referencedColumnName: 'pr_metadata_id',
+    },
+    inverseJoinColumn: {
+      name: 'pr_label_id',
+      referencedColumnName: 'pr_label_id',
+    },
   })
   labels: PrLabel[];
 
   @ManyToMany(() => GithubUser)
   @JoinTable({
     name: 'pr_assignees',
-    joinColumn: { name: 'pr_metadata_id', referencedColumnName: 'pr_metadata_id' },
-    inverseJoinColumn: { name: 'github_user_id', referencedColumnName: 'github_user_id' }
+    joinColumn: {
+      name: 'pr_metadata_id',
+      referencedColumnName: 'pr_metadata_id',
+    },
+    inverseJoinColumn: {
+      name: 'github_user_id',
+      referencedColumnName: 'github_user_id',
+    },
   })
   assignees: GithubUser[];
 }

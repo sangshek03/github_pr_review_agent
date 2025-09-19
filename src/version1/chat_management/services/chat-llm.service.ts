@@ -1,7 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
-import { ChatLLMRequest, ChatLLMResponse, QueryType, QueryClassification } from '../types/chat.types';
+import {
+  ChatLLMRequest,
+  ChatLLMResponse,
+  QueryType,
+  QueryClassification,
+} from '../types/chat.types';
 import { MessageType } from '../chat-messages/chat-messages.entity';
 import { ConversationContextService } from './conversation-context.service';
 
@@ -16,7 +21,7 @@ export class ChatLlmService {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly conversationContextService: ConversationContextService
+    private readonly conversationContextService: ConversationContextService,
   ) {
     const apiKey = this.configService.get<string>('config.openaiApiKey');
 
@@ -32,14 +37,20 @@ export class ChatLlmService {
     });
   }
 
-  async processChatQuery(request: ChatLLMRequest, sessionId?: string): Promise<ChatLLMResponse> {
+  async processChatQuery(
+    request: ChatLLMRequest,
+    sessionId?: string,
+  ): Promise<ChatLLMResponse> {
     if (!this.openai) {
       return this.getFallbackResponse('OpenAI API key not configured');
     }
 
     try {
       const prompt = this.buildChatPrompt(request, sessionId);
-      this.logger.log('Generated prompt for OpenAI:', prompt.substring(0, 500) + '...');
+      this.logger.log(
+        'Generated prompt for OpenAI:',
+        prompt.substring(0, 500) + '...',
+      );
 
       // Try primary model with retry logic
       let response: OpenAI.Chat.Completions.ChatCompletion;
@@ -52,20 +63,32 @@ export class ChatLlmService {
         response = await this.callWithRetry(prompt, this.fallbackModel);
       }
 
-      const parsedResponse = this.parseOpenAIResponse(response, request.classification, sessionId, request.context_data);
+      const parsedResponse = this.parseOpenAIResponse(
+        response,
+        request.classification,
+        sessionId,
+        request.context_data,
+      );
 
       // Update conversation context after processing
-      if (this.enableConversationContext && sessionId && parsedResponse.answer) {
+      if (
+        this.enableConversationContext &&
+        sessionId &&
+        parsedResponse.answer
+      ) {
         try {
           this.conversationContextService.updateConversationState(
             sessionId,
             request.query,
             request.classification,
             parsedResponse.answer,
-            parsedResponse.context_used
+            parsedResponse.context_used,
           );
         } catch (contextError) {
-          this.logger.warn('Failed to update conversation context:', contextError);
+          this.logger.warn(
+            'Failed to update conversation context:',
+            contextError,
+          );
           // Continue without context update - don't break the response
         }
       }
@@ -73,7 +96,9 @@ export class ChatLlmService {
       return parsedResponse;
     } catch (error) {
       this.logger.error('Failed to process chat query:', error);
-      return this.getFallbackResponse('Chat processing failed due to LLM service error');
+      return this.getFallbackResponse(
+        'Chat processing failed due to LLM service error',
+      );
     }
   }
 
@@ -84,7 +109,10 @@ export class ChatLlmService {
 
     try {
       const classificationPrompt = this.buildClassificationPrompt(query);
-      const response = await this.callWithRetry(classificationPrompt, this.primaryModel);
+      const response = await this.callWithRetry(
+        classificationPrompt,
+        this.primaryModel,
+      );
 
       const result = this.parseClassificationResponse(response);
       return result;
@@ -97,7 +125,7 @@ export class ChatLlmService {
   private async callWithRetry(
     prompt: string,
     model: string,
-    attempt: number = 1
+    attempt: number = 1,
   ): Promise<OpenAI.Chat.Completions.ChatCompletion> {
     try {
       return await this.openai.chat.completions.create({
@@ -105,7 +133,8 @@ export class ChatLlmService {
         messages: [
           {
             role: 'system',
-            content: 'You are an expert code review assistant for GitHub Pull Requests. Always respond with valid JSON only.',
+            content:
+              'You are an expert code review assistant for GitHub Pull Requests. Always respond with valid JSON only.',
           },
           {
             role: 'user',
@@ -127,25 +156,37 @@ export class ChatLlmService {
   }
 
   private buildChatPrompt(request: ChatLLMRequest, sessionId?: string): string {
-    const { query, classification, context_data, conversation_history } = request;
+    const { query, classification, context_data, conversation_history } =
+      request;
 
     let contextSection = '';
     if (context_data) {
-      contextSection = this.formatContextData(context_data, classification.primary_type);
+      contextSection = this.formatContextData(
+        context_data,
+        classification.primary_type,
+      );
     }
 
     let conversationSection = '';
     if (conversation_history && conversation_history.length > 0) {
-      conversationSection = this.formatConversationHistory(conversation_history);
+      conversationSection =
+        this.formatConversationHistory(conversation_history);
     }
 
     // Add conversation context enhancement
     let conversationContextSection = '';
     if (this.enableConversationContext && sessionId) {
       try {
-        conversationContextSection = this.conversationContextService.generateContextualPromptEnhancement(sessionId, query);
+        conversationContextSection =
+          this.conversationContextService.generateContextualPromptEnhancement(
+            sessionId,
+            query,
+          );
       } catch (contextError) {
-        this.logger.warn('Failed to generate conversation context enhancement:', contextError);
+        this.logger.warn(
+          'Failed to generate conversation context enhancement:',
+          contextError,
+        );
         conversationContextSection = '';
       }
     }
@@ -153,13 +194,15 @@ export class ChatLlmService {
     // Enhanced security analysis instructions
     let securityInstructions = '';
     if (classification.primary_type === QueryType.SECURITY) {
-      securityInstructions = this.buildSecurityAnalysisInstructions(context_data);
+      securityInstructions =
+        this.buildSecurityAnalysisInstructions(context_data);
     }
 
     // Enhanced code analysis instructions
     let codeAnalysisInstructions = '';
     if (classification.primary_type === QueryType.CODE_ANALYSIS) {
-      codeAnalysisInstructions = this.buildCodeAnalysisInstructions(context_data);
+      codeAnalysisInstructions =
+        this.buildCodeAnalysisInstructions(context_data);
     }
 
     return `You are an expert GitHub PR analysis assistant. Answer the user's question about the pull request based on the provided context.
@@ -323,18 +366,25 @@ Respond with ONLY a valid JSON object:
 
     if (contextData?.summary?.security_concerns?.length > 0) {
       instructions += `- Specific security concerns found: ${contextData.summary.security_concerns.join(', ')}\n`;
-      instructions += '- For each concern, explain: What it is, Why it\'s risky, How to fix it\n';
-      instructions += '- Assess the severity level (Critical/High/Medium/Low) for each issue\n';
+      instructions +=
+        "- For each concern, explain: What it is, Why it's risky, How to fix it\n";
+      instructions +=
+        '- Assess the severity level (Critical/High/Medium/Low) for each issue\n';
     }
 
     if (contextData?.files) {
-      instructions += '- Examine authentication, authorization, input validation, and data handling in the changed files\n';
-      instructions += '- Look for potential SQL injection, XSS, CSRF, or other common vulnerabilities\n';
-      instructions += '- Check for hardcoded secrets, weak encryption, or insecure configurations\n';
+      instructions +=
+        '- Examine authentication, authorization, input validation, and data handling in the changed files\n';
+      instructions +=
+        '- Look for potential SQL injection, XSS, CSRF, or other common vulnerabilities\n';
+      instructions +=
+        '- Check for hardcoded secrets, weak encryption, or insecure configurations\n';
     }
 
-    instructions += '- Provide specific remediation steps with code examples where applicable\n';
-    instructions += '- Rate the overall security impact of this PR on a 1-10 scale with justification\n';
+    instructions +=
+      '- Provide specific remediation steps with code examples where applicable\n';
+    instructions +=
+      '- Rate the overall security impact of this PR on a 1-10 scale with justification\n';
 
     return instructions;
   }
@@ -358,8 +408,10 @@ Respond with ONLY a valid JSON object:
 
     instructions += '- For each significant change:\n';
     instructions += '  * Explain what the code does and why it was changed\n';
-    instructions += '  * Identify potential bugs, edge cases, or logic issues\n';
-    instructions += '  * Assess code quality, readability, and maintainability\n';
+    instructions +=
+      '  * Identify potential bugs, edge cases, or logic issues\n';
+    instructions +=
+      '  * Assess code quality, readability, and maintainability\n';
     instructions += '  * Suggest improvements or optimizations\n';
     instructions += '- Reference specific functions, classes, or code blocks\n';
     instructions += '- Include relevant code snippets in your analysis\n';
@@ -372,7 +424,7 @@ Respond with ONLY a valid JSON object:
     response: OpenAI.Chat.Completions.ChatCompletion,
     classification: QueryClassification,
     sessionId?: string,
-    contextData?: any
+    contextData?: any,
   ): ChatLLMResponse {
     try {
       const content = response.choices[0]?.message?.content;
@@ -391,22 +443,33 @@ Respond with ONLY a valid JSON object:
         : [];
 
       // Use adaptive followups if session available and current followups are generic/empty
-      if (this.enableConversationContext && sessionId && (followupQuestions.length === 0 || this.areFollowupsGeneric(followupQuestions))) {
+      if (
+        this.enableConversationContext &&
+        sessionId &&
+        (followupQuestions.length === 0 ||
+          this.areFollowupsGeneric(followupQuestions))
+      ) {
         try {
-          followupQuestions = this.conversationContextService.generateAdaptiveFollowups(
-            sessionId,
-            classification.primary_type,
-            contextData || {}
-          );
+          followupQuestions =
+            this.conversationContextService.generateAdaptiveFollowups(
+              sessionId,
+              classification.primary_type,
+              contextData || {},
+            );
         } catch (followupError) {
-          this.logger.warn('Failed to generate adaptive followups:', followupError);
+          this.logger.warn(
+            'Failed to generate adaptive followups:',
+            followupError,
+          );
           // Keep existing followups
         }
       }
 
       // Fallback to default if still empty
       if (followupQuestions.length === 0) {
-        followupQuestions = this.generateFallbackFollowups(classification.primary_type);
+        followupQuestions = this.generateFallbackFollowups(
+          classification.primary_type,
+        );
       }
 
       // Handle both string and object answers
@@ -423,25 +486,30 @@ Respond with ONLY a valid JSON object:
 
       const finalResponse = {
         answer: processedAnswer,
-        message_type: this.validateMessageType(parsed.message_type) || MessageType.TEXT,
-        context_used: Array.isArray(parsed.context_used) ? parsed.context_used : [],
+        message_type:
+          this.validateMessageType(parsed.message_type) || MessageType.TEXT,
+        context_used: Array.isArray(parsed.context_used)
+          ? parsed.context_used
+          : [],
         followup_questions: followupQuestions,
-        confidence_score: typeof parsed.confidence_score === 'number'
-          ? Math.max(0, Math.min(1, parsed.confidence_score))
-          : 0.5,
+        confidence_score:
+          typeof parsed.confidence_score === 'number'
+            ? Math.max(0, Math.min(1, parsed.confidence_score))
+            : 0.5,
         sources: Array.isArray(parsed.sources) ? parsed.sources : [],
       };
 
-      const answerLength = typeof finalResponse.answer === 'string'
-        ? finalResponse.answer.length
-        : JSON.stringify(finalResponse.answer).length;
+      const answerLength =
+        typeof finalResponse.answer === 'string'
+          ? finalResponse.answer.length
+          : JSON.stringify(finalResponse.answer).length;
 
       this.logger.log('Final ChatLLMResponse:', {
         hasAnswer: !!finalResponse.answer,
         answerLength: answerLength,
         answerType: typeof finalResponse.answer,
         messageType: finalResponse.message_type,
-        contextUsedLength: finalResponse.context_used?.length || 0
+        contextUsedLength: finalResponse.context_used?.length || 0,
       });
 
       return finalResponse;
@@ -452,7 +520,7 @@ Respond with ONLY a valid JSON object:
   }
 
   private parseClassificationResponse(
-    response: OpenAI.Chat.Completions.ChatCompletion
+    response: OpenAI.Chat.Completions.ChatCompletion,
   ): QueryClassification {
     try {
       const content = response.choices[0]?.message?.content;
@@ -463,11 +531,15 @@ Respond with ONLY a valid JSON object:
       const parsed = JSON.parse(content);
 
       return {
-        primary_type: this.validateQueryType(parsed.primary_type) || QueryType.GENERAL,
-        confidence: typeof parsed.confidence === 'number'
-          ? Math.max(0, Math.min(1, parsed.confidence))
-          : 0.5,
-        context_needed: Array.isArray(parsed.context_needed) ? parsed.context_needed : ['metadata'],
+        primary_type:
+          this.validateQueryType(parsed.primary_type) || QueryType.GENERAL,
+        confidence:
+          typeof parsed.confidence === 'number'
+            ? Math.max(0, Math.min(1, parsed.confidence))
+            : 0.5,
+        context_needed: Array.isArray(parsed.context_needed)
+          ? parsed.context_needed
+          : ['metadata'],
         specific_filters: parsed.specific_filters || undefined,
       };
     } catch (error) {
@@ -478,12 +550,12 @@ Respond with ONLY a valid JSON object:
 
   private validateMessageType(type: string): MessageType | null {
     const validTypes = Object.values(MessageType) as string[];
-    return validTypes.includes(type) ? type as MessageType : null;
+    return validTypes.includes(type) ? (type as MessageType) : null;
   }
 
   private validateQueryType(type: string): QueryType | null {
     const validTypes = Object.values(QueryType);
-    return validTypes.includes(type as QueryType) ? type as QueryType : null;
+    return validTypes.includes(type as QueryType) ? (type as QueryType) : null;
   }
 
   private generateFallbackFollowups(queryType: QueryType): string[] {
@@ -491,48 +563,48 @@ Respond with ONLY a valid JSON object:
       [QueryType.SUMMARY]: [
         'What files were changed in this PR?',
         'What did reviewers say about this PR?',
-        'Are there any security concerns?'
+        'Are there any security concerns?',
       ],
       [QueryType.CODE_ANALYSIS]: [
         'Show me the diff for a specific file',
         'What are the main code changes?',
-        'Are there any performance implications?'
+        'Are there any performance implications?',
       ],
       [QueryType.REVIEWS]: [
         'What feedback did reviewers provide?',
         'Has this PR been approved?',
-        'Are there any requested changes?'
+        'Are there any requested changes?',
       ],
       [QueryType.SECURITY]: [
         'What specific security issues were found?',
         'How can these security concerns be addressed?',
-        'Are there any authentication-related changes?'
+        'Are there any authentication-related changes?',
       ],
       [QueryType.PERFORMANCE]: [
         'What performance optimizations are recommended?',
         'Are there any bottlenecks in the code?',
-        'How does this impact system performance?'
+        'How does this impact system performance?',
       ],
       [QueryType.FILES]: [
         'Show me the largest changes',
         'What programming languages are used?',
-        'Are there any new files added?'
+        'Are there any new files added?',
       ],
       [QueryType.TESTS]: [
         'What tests are recommended?',
         'Is there good test coverage?',
-        'Are there any edge cases to consider?'
+        'Are there any edge cases to consider?',
       ],
       [QueryType.TIMELINE]: [
         'When was this PR created?',
         'When was it last updated?',
-        'What is the review timeline?'
+        'What is the review timeline?',
       ],
       [QueryType.GENERAL]: [
         'What is this PR about?',
         'Who authored this PR?',
-        'What is the current status?'
-      ]
+        'What is the current status?',
+      ],
     };
 
     return fallbackMap[queryType] || fallbackMap[QueryType.GENERAL];
@@ -547,7 +619,7 @@ Respond with ONLY a valid JSON object:
       followup_questions: [
         'Could you please rephrase your question?',
         'Would you like to ask about something else?',
-        'Is there specific information you need about this PR?'
+        'Is there specific information you need about this PR?',
       ],
       confidence_score: 0.1,
       sources: [],
@@ -572,13 +644,13 @@ Respond with ONLY a valid JSON object:
       /anything else/i,
     ];
 
-    return followups.every(followup =>
-      genericPatterns.some(pattern => pattern.test(followup))
+    return followups.every((followup) =>
+      genericPatterns.some((pattern) => pattern.test(followup)),
     );
   }
 
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   async validateResponse(response: ChatLLMResponse): Promise<boolean> {
@@ -592,7 +664,10 @@ Respond with ONLY a valid JSON object:
         return false;
       }
 
-      if (!Array.isArray(response.context_used) || !Array.isArray(response.followup_questions)) {
+      if (
+        !Array.isArray(response.context_used) ||
+        !Array.isArray(response.followup_questions)
+      ) {
         return false;
       }
 

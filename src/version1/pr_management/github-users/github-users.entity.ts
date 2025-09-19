@@ -17,7 +17,7 @@ import { GithubPrReview } from '../github-pr-reviews/github-pr-reviews.entity';
 import { PrComment } from '../pr-comments/pr-comments.entity';
 import { PRCommit } from '../pr-commits/pr-commits.entity';
 
-@Entity({  name: 'github_users' })
+@Entity({ name: 'github_users' })
 @Unique(['github_id'])
 @Unique(['login'])
 @Index(['github_id'])

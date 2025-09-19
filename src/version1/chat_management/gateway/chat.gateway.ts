@@ -47,7 +47,7 @@ export class ChatGateway
 
     try {
       // Extract user ID from handshake or token
-      const userId = client.handshake.auth.token;;
+      const userId = client.handshake.auth.token;
 
       if (!userId) {
         this.logger.warn(`Client ${client.id} failed authentication`);
@@ -156,34 +156,46 @@ export class ChatGateway
       });
 
       // Process the message through the chat service
-      this.logger.log(`Processing message for session ${data.session_id}: "${data.message}"`);
+      this.logger.log(
+        `Processing message for session ${data.session_id}: "${data.message}"`,
+      );
       const response = await this.chatSessionService.askQuestion(
         data.session_id,
         client.userId,
         { question: data.message },
       );
-      const answerLength = typeof response?.answer === 'string'
-        ? response.answer.length
-        : (response?.answer ? JSON.stringify(response.answer).length : 0);
+      const answerLength =
+        typeof response?.answer === 'string'
+          ? response.answer.length
+          : response?.answer
+            ? JSON.stringify(response.answer).length
+            : 0;
 
       this.logger.log(`Received response for session ${data.session_id}:`, {
         hasAnswer: !!response?.answer,
         answerLength: answerLength,
         answerType: typeof response?.answer,
         messageType: response?.message_type,
-        contextUsed: response?.context_used?.length || 0
+        contextUsed: response?.context_used?.length || 0,
       });
 
       // Validate response structure
-      const answerContent = typeof response?.answer === 'string'
-        ? response.answer.trim()
-        : (response?.answer ? JSON.stringify(response.answer) : '');
+      const answerContent =
+        typeof response?.answer === 'string'
+          ? response.answer.trim()
+          : response?.answer
+            ? JSON.stringify(response.answer)
+            : '';
 
       this.logger.log('Validation check:', {
         hasResponse: !!response,
         hasAnswer: !!response?.answer,
         answerContentLength: answerContent.length,
-        willPass: !(!response || !response.answer || answerContent.length === 0)
+        willPass: !(
+          !response ||
+          !response.answer ||
+          answerContent.length === 0
+        ),
       });
 
       if (!response || !response.answer || answerContent.length === 0) {
@@ -192,7 +204,7 @@ export class ChatGateway
           hasAnswer: !!response?.answer,
           answerType: typeof response?.answer,
           answerContentLength: answerContent.length,
-          answerContent: response?.answer
+          answerContent: response?.answer,
         });
         client.emit('error', {
           code: 'INVALID_RESPONSE',
@@ -204,9 +216,10 @@ export class ChatGateway
       this.logger.log('Response validation PASSED, broadcasting message...');
 
       // Always convert to string format for consistent frontend handling
-      const content = typeof response.answer === 'string'
-        ? response.answer
-        : JSON.stringify(response.answer, null, 2);
+      const content =
+        typeof response.answer === 'string'
+          ? response.answer
+          : JSON.stringify(response.answer, null, 2);
 
       // Broadcast the new message to all clients in the session
       const broadcastData = {
@@ -228,7 +241,7 @@ export class ChatGateway
         sessionId: data.session_id,
         messageType: broadcastData.message.message_type,
         hasContent: !!broadcastData.message.content,
-        contentLength: broadcastData.message.content?.length || 0
+        contentLength: broadcastData.message.content?.length || 0,
       });
 
       this.broadcastToSession(data.session_id, 'message:new', broadcastData);
@@ -384,7 +397,7 @@ export class ChatGateway
       hasSessionRoom: !!sessionRoom,
       connectedSockets: sessionRoom?.size || 0,
       totalConnectedClients: this.connectedClients.size,
-      eventType: event
+      eventType: event,
     });
 
     if (!sessionRoom) {
@@ -406,7 +419,9 @@ export class ChatGateway
       }
     });
 
-    this.logger.log(`Broadcast complete: sent ${messagesSent} messages for event '${event}'`);
+    this.logger.log(
+      `Broadcast complete: sent ${messagesSent} messages for event '${event}'`,
+    );
   }
 
   // Public method to broadcast messages from other services

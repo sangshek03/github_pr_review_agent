@@ -11,7 +11,7 @@ export interface PRReviewRequest {
 }
 
 export interface PRReviewResponse {
-  pr_summary_id?:string;
+  pr_summary_id?: string;
   summary: string;
   issues_found: string[];
   suggestions: string[];
@@ -27,7 +27,7 @@ export interface PRReviewResponse {
     scalability: number;
     testing: number;
   };
-  chatSession?:string
+  chatSession?: string;
 }
 
 @Injectable()
@@ -246,7 +246,6 @@ export class LlmService {
           scalability: 0,
           testing: 0,
         },
-        
       };
     } catch (error) {
       this.logger.error('Failed to parse OpenAI response:', error);
@@ -266,14 +265,14 @@ export class LlmService {
       overall_score: 0,
       security_concerns: [],
       performance_issues: [],
-       well_handled_cases:  [],
-        future_enhancements: [],
-        code_quality_rating: {
-          readability: 0,
-          maintainability: 0,
-          scalability: 0,
-          testing: 0,
-        },
+      well_handled_cases: [],
+      future_enhancements: [],
+      code_quality_rating: {
+        readability: 0,
+        maintainability: 0,
+        scalability: 0,
+        testing: 0,
+      },
     };
   }
 }

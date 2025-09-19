@@ -37,8 +37,8 @@ import { ChatSession } from 'src/version1/chat_management/chat-sessions/chat-ses
       PrSummary,
       ChatSession,
       PrMetadata,
-      User
-    ])
+      User,
+    ]),
   ],
   controllers: [PrFetchController],
   providers: [PrFetchService, PrDataService, LlmService],

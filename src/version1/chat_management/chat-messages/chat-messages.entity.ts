@@ -59,7 +59,7 @@ export class ChatMessage {
   deleted_at: Date;
 
   @ManyToOne(() => ChatSession, (chatSession) => chatSession.messages, {
-    onDelete: 'CASCADE'
+    onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'session_id' })
   chatSession: ChatSession;

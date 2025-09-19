@@ -46,7 +46,7 @@ export class ChatController {
     try {
       const session = await this.chatSessionService.createSession(
         user.user_id,
-        createSessionDto
+        createSessionDto,
       );
 
       const responseData: ChatSessionResponseDto = {
@@ -56,17 +56,21 @@ export class ChatController {
         last_activity: session.last_activity,
         created_at: session.created_at,
         updated_at: session.updated_at,
-        pr_metadata: session.prMetadata ? {
-          pr_metadata_id: session.prMetadata.pr_metadata_id,
-          pr_number: session.prMetadata.pr_number,
-          title: session.prMetadata.title,
-          state: session.prMetadata.state,
-        } : undefined,
-        repository: session.repository ? {
-          repository_id: session.repository.repository_id,
-          repository_name: session.repository.repository_name,
-          repository_owner: session.repository.repository_owner,
-        } : undefined,
+        pr_metadata: session.prMetadata
+          ? {
+              pr_metadata_id: session.prMetadata.pr_metadata_id,
+              pr_number: session.prMetadata.pr_number,
+              title: session.prMetadata.title,
+              state: session.prMetadata.state,
+            }
+          : undefined,
+        repository: session.repository
+          ? {
+              repository_id: session.repository.repository_id,
+              repository_name: session.repository.repository_name,
+              repository_owner: session.repository.repository_owner,
+            }
+          : undefined,
       };
 
       return {
@@ -89,28 +93,34 @@ export class ChatController {
       const sessions = await this.chatSessionService.getUserSessions(
         user.user_id,
         query.repository_id,
-        query.pr_metadata_id
+        query.pr_metadata_id,
       );
 
-      const responseData: ChatSessionResponseDto[] = sessions.map(session => ({
-        session_id: session.session_id,
-        session_name: session.session_name,
-        session_type: session.session_type,
-        last_activity: session.last_activity,
-        created_at: session.created_at,
-        updated_at: session.updated_at,
-        pr_metadata: session.prMetadata ? {
-          pr_metadata_id: session.prMetadata.pr_metadata_id,
-          pr_number: session.prMetadata.pr_number,
-          title: session.prMetadata.title,
-          state: session.prMetadata.state,
-        } : undefined,
-        repository: session.repository ? {
-          repository_id: session.repository.repository_id,
-          repository_name: session.repository.repository_name,
-          repository_owner: session.repository.repository_owner,
-        } : undefined,
-      }));
+      const responseData: ChatSessionResponseDto[] = sessions.map(
+        (session) => ({
+          session_id: session.session_id,
+          session_name: session.session_name,
+          session_type: session.session_type,
+          last_activity: session.last_activity,
+          created_at: session.created_at,
+          updated_at: session.updated_at,
+          pr_metadata: session.prMetadata
+            ? {
+                pr_metadata_id: session.prMetadata.pr_metadata_id,
+                pr_number: session.prMetadata.pr_number,
+                title: session.prMetadata.title,
+                state: session.prMetadata.state,
+              }
+            : undefined,
+          repository: session.repository
+            ? {
+                repository_id: session.repository.repository_id,
+                repository_name: session.repository.repository_name,
+                repository_owner: session.repository.repository_owner,
+              }
+            : undefined,
+        }),
+      );
 
       return {
         success: true,
@@ -129,10 +139,11 @@ export class ChatController {
     @CurrentUser() user: { user_id: string },
   ): Promise<GetSessionResponseDto> {
     try {
-      const { session, messages } = await this.chatSessionService.getSessionWithMessages(
-        sessionId,
-        user.user_id
-      );
+      const { session, messages } =
+        await this.chatSessionService.getSessionWithMessages(
+          sessionId,
+          user.user_id,
+        );
 
       const sessionData: ChatSessionResponseDto = {
         session_id: session.session_id,
@@ -141,29 +152,35 @@ export class ChatController {
         last_activity: session.last_activity,
         created_at: session.created_at,
         updated_at: session.updated_at,
-        pr_metadata: session.prMetadata ? {
-          pr_metadata_id: session.prMetadata.pr_metadata_id,
-          pr_number: session.prMetadata.pr_number,
-          title: session.prMetadata.title,
-          state: session.prMetadata.state,
-        } : undefined,
-        repository: session.repository ? {
-          repository_id: session.repository.repository_id,
-          repository_name: session.repository.repository_name,
-          repository_owner: session.repository.repository_owner,
-        } : undefined,
+        pr_metadata: session.prMetadata
+          ? {
+              pr_metadata_id: session.prMetadata.pr_metadata_id,
+              pr_number: session.prMetadata.pr_number,
+              title: session.prMetadata.title,
+              state: session.prMetadata.state,
+            }
+          : undefined,
+        repository: session.repository
+          ? {
+              repository_id: session.repository.repository_id,
+              repository_name: session.repository.repository_name,
+              repository_owner: session.repository.repository_owner,
+            }
+          : undefined,
       };
 
-      const messagesData: ChatMessageResponseDto[] = messages.map(message => ({
-        message_id: message.message_id,
-        sender_type: message.sender_type,
-        message_type: message.message_type,
-        message_content: message.message_content,
-        context_used: message.context_used || undefined,
-        query_classification: message.query_classification || undefined,
-        response_metadata: message.response_metadata || undefined,
-        created_at: message.created_at,
-      }));
+      const messagesData: ChatMessageResponseDto[] = messages.map(
+        (message) => ({
+          message_id: message.message_id,
+          sender_type: message.sender_type,
+          message_type: message.message_type,
+          message_content: message.message_content,
+          context_used: message.context_used || undefined,
+          query_classification: message.query_classification || undefined,
+          response_metadata: message.response_metadata || undefined,
+          created_at: message.created_at,
+        }),
+      );
 
       const responseData: SessionWithMessagesResponseDto = {
         session: sessionData,
@@ -191,7 +208,7 @@ export class ChatController {
       const response = await this.chatSessionService.askQuestion(
         sessionId,
         user.user_id,
-        askQuestionDto
+        askQuestionDto,
       );
 
       return {
@@ -232,7 +249,7 @@ export class ChatController {
     try {
       const analytics = await this.chatSessionService.getSessionAnalytics(
         sessionId,
-        user.user_id
+        user.user_id,
       );
 
       return {

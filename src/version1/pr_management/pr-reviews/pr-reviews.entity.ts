@@ -90,14 +90,13 @@ export class PRReview {
 
   @ManyToOne(() => PrMetadata, (prMetadata) => prMetadata.prReviews, {
     cascade: ['insert', 'update'],
-    onDelete: 'RESTRICT'
+    onDelete: 'RESTRICT',
   })
   @JoinColumn({ name: 'pr_metadata_id' })
   prMetadata: PrMetadata;
 
   @OneToMany(() => ReviewFinding, (reviewFinding) => reviewFinding.prReview)
   reviewFindings: ReviewFinding[];
-
 
   @OneToMany(() => PRFile, (prFile) => prFile.prReview)
   prFiles: PRFile[];

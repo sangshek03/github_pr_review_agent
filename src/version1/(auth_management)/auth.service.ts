@@ -17,7 +17,10 @@ import {
 } from './auth.dto';
 import { Response } from 'express';
 import { User } from '../user_management/users/users.entity';
-import { AuthProvider, AuthProviderType } from './auth-providers/auth-providers.entity';
+import {
+  AuthProvider,
+  AuthProviderType,
+} from './auth-providers/auth-providers.entity';
 import { EncryptionUtil } from '../../utils/encryption.util';
 import { ConfigService } from '@nestjs/config';
 
@@ -166,13 +169,21 @@ export class AuthService {
   }
 
   async validateGoogleUser(googleUserData: GoogleUserData): Promise<User> {
-    const { googleId, email, firstName, lastName, picture, accessToken, refreshToken } = googleUserData;
+    const {
+      googleId,
+      email,
+      firstName,
+      lastName,
+      picture,
+      accessToken,
+      refreshToken,
+    } = googleUserData;
 
     // Check if user already exists with this Google ID
-    let authProvider = await this.authProviderRepository.findOne({
+    const authProvider = await this.authProviderRepository.findOne({
       where: {
         provider: AuthProviderType.GOOGLE,
-        provider_account_id: googleId
+        provider_account_id: googleId,
       },
       relations: ['user'],
     });
@@ -189,18 +200,33 @@ export class AuthService {
 
       if (user) {
         // Link Google account to existing user
-        await this.createAuthProvider(user, googleId, accessToken, refreshToken);
+        await this.createAuthProvider(
+          user,
+          googleId,
+          accessToken,
+          refreshToken,
+        );
       } else {
         // Create new user
         user = await this.createGoogleUser(email, firstName, lastName, picture);
-        await this.createAuthProvider(user, googleId, accessToken, refreshToken);
+        await this.createAuthProvider(
+          user,
+          googleId,
+          accessToken,
+          refreshToken,
+        );
       }
     }
 
     return user;
   }
 
-  private async createGoogleUser(email: string, firstName: string, lastName: string, picture: string): Promise<User> {
+  private async createGoogleUser(
+    email: string,
+    firstName: string,
+    lastName: string,
+    picture: string,
+  ): Promise<User> {
     const user = this.userRepository.create({
       f_name: firstName,
       l_name: lastName,
@@ -208,18 +234,24 @@ export class AuthService {
       email_verified: true,
       avatar_url: picture,
       password: undefined, // No password for OAuth users
-
     });
 
     return await this.userRepository.save(user);
   }
 
-  private async createAuthProvider(user: User, googleId: string, accessToken: string, refreshToken?: string): Promise<void> {
+  private async createAuthProvider(
+    user: User,
+    googleId: string,
+    accessToken: string,
+    refreshToken?: string,
+  ): Promise<void> {
     const authProvider = this.authProviderRepository.create({
       provider: AuthProviderType.GOOGLE,
       provider_account_id: googleId,
       access_token_encrypted: EncryptionUtil.encrypt(accessToken),
-      refresh_token_encrypted: refreshToken ? EncryptionUtil.encrypt(refreshToken) : undefined,
+      refresh_token_encrypted: refreshToken
+        ? EncryptionUtil.encrypt(refreshToken)
+        : undefined,
       scope: 'email profile',
       expires_at: new Date(Date.now() + 3600 * 1000), // 1 hour from now (Google tokens typically expire in 1 hour)
       user,
@@ -228,10 +260,15 @@ export class AuthService {
     await this.authProviderRepository.save(authProvider);
   }
 
-  private async updateGoogleTokens(authProvider: AuthProvider, accessToken: string, refreshToken?: string): Promise<void> {
+  private async updateGoogleTokens(
+    authProvider: AuthProvider,
+    accessToken: string,
+    refreshToken?: string,
+  ): Promise<void> {
     authProvider.access_token_encrypted = EncryptionUtil.encrypt(accessToken);
     if (refreshToken) {
-      authProvider.refresh_token_encrypted = EncryptionUtil.encrypt(refreshToken);
+      authProvider.refresh_token_encrypted =
+        EncryptionUtil.encrypt(refreshToken);
     }
     authProvider.expires_at = new Date(Date.now() + 3600 * 1000);
 
@@ -254,7 +291,7 @@ export class AuthService {
       sameSite: 'strict',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
-const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
     return res.redirect(`${frontendUrl}/dashboard`);
   }
 

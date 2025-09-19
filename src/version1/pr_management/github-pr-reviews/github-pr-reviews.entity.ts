@@ -57,14 +57,14 @@ export class GithubPrReview {
   // Relations
   @ManyToOne(() => PrMetadata, (prMetadata) => prMetadata.githubPrReviews, {
     cascade: ['insert', 'update'],
-    onDelete: 'CASCADE'
+    onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'pr_metadata_id' })
   prMetadata: PrMetadata;
 
   @ManyToOne(() => GithubUser, (githubUser) => githubUser.githubPrReviews, {
     cascade: ['insert', 'update'],
-    onDelete: 'RESTRICT'
+    onDelete: 'RESTRICT',
   })
   @JoinColumn({ name: 'reviewer_github_user_id' })
   reviewer: GithubUser;

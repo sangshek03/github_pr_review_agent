@@ -43,7 +43,7 @@ export class PrLabel {
   // Relations
   @ManyToOne(() => Repository, {
     cascade: ['insert', 'update'],
-    onDelete: 'CASCADE'
+    onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'repository_id' })
   repository: Repository;

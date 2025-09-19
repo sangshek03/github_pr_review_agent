@@ -8,7 +8,7 @@ export class ResponseEvaluatorService {
   async evaluateResponse(
     query: string,
     response: ChatLLMResponse,
-    context: any
+    context: any,
   ): Promise<ResponseEvaluation> {
     try {
       const evaluation: ResponseEvaluation = {
@@ -26,22 +26,31 @@ export class ResponseEvaluatorService {
       }
 
       // 2. Detect hallucination
-      evaluation.hallucination_score = this.detectHallucination(response.answer, context);
+      evaluation.hallucination_score = this.detectHallucination(
+        response.answer,
+        context,
+      );
       if (evaluation.hallucination_score > 0.7) {
         evaluation.is_valid = false;
-        evaluation.issues.push('High hallucination detected - response contains information not in context');
+        evaluation.issues.push(
+          'High hallucination detected - response contains information not in context',
+        );
       }
 
       // 3. Assess relevance
       evaluation.relevance_score = this.assessRelevance(query, response.answer);
       if (evaluation.relevance_score < 0.3) {
-        evaluation.issues.push('Low relevance - response does not address the query adequately');
+        evaluation.issues.push(
+          'Low relevance - response does not address the query adequately',
+        );
       }
 
       // 4. Check confidence score validity
       if (response.confidence_score < 0 || response.confidence_score > 1) {
         evaluation.is_valid = false;
-        evaluation.issues.push('Invalid confidence score - must be between 0 and 1');
+        evaluation.issues.push(
+          'Invalid confidence score - must be between 0 and 1',
+        );
       }
 
       // 5. Check for empty or meaningless responses
@@ -57,10 +66,14 @@ export class ResponseEvaluatorService {
 
       // 7. Check context usage validity
       if (!this.validateContextUsage(response.context_used, context)) {
-        evaluation.issues.push('Context usage mismatch - claimed context not available');
+        evaluation.issues.push(
+          'Context usage mismatch - claimed context not available',
+        );
       }
 
-      this.logger.log(`Response evaluation completed - Valid: ${evaluation.is_valid}, Issues: ${evaluation.issues.length}`);
+      this.logger.log(
+        `Response evaluation completed - Valid: ${evaluation.is_valid}, Issues: ${evaluation.issues.length}`,
+      );
       return evaluation;
     } catch (error) {
       this.logger.error('Response evaluation failed:', error);
@@ -73,7 +86,10 @@ export class ResponseEvaluatorService {
     }
   }
 
-  private validateJsonStructure(response: ChatLLMResponse): { isValid: boolean; issues: string[] } {
+  private validateJsonStructure(response: ChatLLMResponse): {
+    isValid: boolean;
+    issues: string[];
+  } {
     const issues: string[] = [];
 
     // Check required fields
@@ -121,7 +137,7 @@ export class ResponseEvaluatorService {
     const factualClaims = this.extractFactualClaims(responseText);
     let unsupportedClaims = 0;
 
-    factualClaims.forEach(claim => {
+    factualClaims.forEach((claim) => {
       if (!this.isClaimSupportedByContext(claim, contextText)) {
         unsupportedClaims++;
       }
@@ -135,7 +151,7 @@ export class ResponseEvaluatorService {
     const technicalTerms = this.extractTechnicalTerms(responseText);
     let unsupportedTerms = 0;
 
-    technicalTerms.forEach(term => {
+    technicalTerms.forEach((term) => {
       if (!contextText.includes(term.toLowerCase())) {
         unsupportedTerms++;
       }
@@ -162,7 +178,9 @@ export class ResponseEvaluatorService {
     }
 
     // Calculate word overlap
-    const commonWords = queryWords.filter(word => responseWords.includes(word));
+    const commonWords = queryWords.filter((word) =>
+      responseWords.includes(word),
+    );
     const wordOverlap = commonWords.length / queryWords.length;
 
     // Check for query intent match
@@ -174,7 +192,8 @@ export class ResponseEvaluatorService {
     const directAnswer = this.hasDirectAnswer(query, response);
 
     // Calculate final relevance score
-    const relevanceScore = (wordOverlap * 0.4) + (intentMatch * 0.4) + (directAnswer * 0.2);
+    const relevanceScore =
+      wordOverlap * 0.4 + intentMatch * 0.4 + directAnswer * 0.2;
 
     return Math.min(1, relevanceScore);
   }
@@ -190,7 +209,7 @@ export class ResponseEvaluatorService {
       /^(no information|no data|not available)/i,
     ];
 
-    return meaninglessPatterns.some(pattern => pattern.test(response.trim()));
+    return meaninglessPatterns.some((pattern) => pattern.test(response.trim()));
   }
 
   private validateFollowupQuestions(followupQuestions: string[]): boolean {
@@ -198,11 +217,13 @@ export class ResponseEvaluatorService {
       return true; // Empty array is acceptable
     }
 
-    return followupQuestions.every(question => {
-      return question &&
-             typeof question === 'string' &&
-             question.trim().length > 0 &&
-             question.includes('?');
+    return followupQuestions.every((question) => {
+      return (
+        question &&
+        typeof question === 'string' &&
+        question.trim().length > 0 &&
+        question.includes('?')
+      );
     });
   }
 
@@ -216,23 +237,59 @@ export class ResponseEvaluatorService {
     }
 
     const availableContextTypes = Object.keys(context);
-    return contextUsed.every(contextType => availableContextTypes.includes(contextType));
+    return contextUsed.every((contextType) =>
+      availableContextTypes.includes(contextType),
+    );
   }
 
   private extractKeywords(text: string): string[] {
     // Remove common stop words and extract meaningful keywords
     const stopWords = new Set([
-      'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
-      'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
-      'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
-      'should', 'may', 'might', 'can', 'this', 'that', 'these', 'those'
+      'the',
+      'a',
+      'an',
+      'and',
+      'or',
+      'but',
+      'in',
+      'on',
+      'at',
+      'to',
+      'for',
+      'of',
+      'with',
+      'by',
+      'is',
+      'are',
+      'was',
+      'were',
+      'be',
+      'been',
+      'being',
+      'have',
+      'has',
+      'had',
+      'do',
+      'does',
+      'did',
+      'will',
+      'would',
+      'could',
+      'should',
+      'may',
+      'might',
+      'can',
+      'this',
+      'that',
+      'these',
+      'those',
     ]);
 
     return text
       .toLowerCase()
       .replace(/[^\w\s]/g, ' ')
       .split(/\s+/)
-      .filter(word => word.length > 2 && !stopWords.has(word));
+      .filter((word) => word.length > 2 && !stopWords.has(word));
   }
 
   private extractContextText(context: any): string {
@@ -275,7 +332,7 @@ export class ResponseEvaluatorService {
       /this pr (adds|removes|modifies|fixes)/gi,
     ];
 
-    patterns.forEach(pattern => {
+    patterns.forEach((pattern) => {
       const matches = text.matchAll(pattern);
       for (const match of matches) {
         claims.push(match[0]);
@@ -295,7 +352,7 @@ export class ResponseEvaluatorService {
 
     const terms: string[] = [];
 
-    technicalPatterns.forEach(pattern => {
+    technicalPatterns.forEach((pattern) => {
       const matches = text.matchAll(pattern);
       for (const match of matches) {
         terms.push(match[0]);
@@ -305,12 +362,17 @@ export class ResponseEvaluatorService {
     return terms;
   }
 
-  private isClaimSupportedByContext(claim: string, contextText: string): boolean {
+  private isClaimSupportedByContext(
+    claim: string,
+    contextText: string,
+  ): boolean {
     // Simple keyword matching to check if claim is supported
     const claimWords = this.extractKeywords(claim);
     const contextWords = this.extractKeywords(contextText);
 
-    const supportedWords = claimWords.filter(word => contextWords.includes(word));
+    const supportedWords = claimWords.filter((word) =>
+      contextWords.includes(word),
+    );
     return supportedWords.length >= Math.ceil(claimWords.length * 0.6);
   }
 
@@ -336,7 +398,10 @@ export class ResponseEvaluatorService {
   private identifyResponseIntent(response: string): string {
     const lowerResponse = response.toLowerCase();
 
-    if (lowerResponse.includes('here is') || lowerResponse.includes('the following')) {
+    if (
+      lowerResponse.includes('here is') ||
+      lowerResponse.includes('the following')
+    ) {
       return 'listing';
     }
     if (lowerResponse.includes('because') || lowerResponse.includes('due to')) {
@@ -356,7 +421,9 @@ export class ResponseEvaluatorService {
 
     // Look for direct addressing of query terms in the first part of response
     const firstSentence = response.split('.')[0].toLowerCase();
-    const addressedWords = queryWords.filter(word => firstSentence.includes(word));
+    const addressedWords = queryWords.filter((word) =>
+      firstSentence.includes(word),
+    );
 
     return addressedWords.length / Math.max(1, queryWords.length);
   }

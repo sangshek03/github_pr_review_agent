@@ -1,4 +1,10 @@
-import { IsString, IsOptional, IsUUID, IsNotEmpty, IsUrl } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsUUID,
+  IsNotEmpty,
+  IsUrl,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 import { MessageType, SenderType } from '../chat-messages/chat-messages.entity';
 import { SessionType } from '../chat-sessions/chat-sessions.entity';
@@ -102,7 +108,9 @@ export class ApiResponse<T> {
 }
 
 export class CreateSessionResponseDto extends ApiResponse<ChatSessionResponseDto> {}
-export class GetSessionsResponseDto extends ApiResponse<ChatSessionResponseDto[]> {}
+export class GetSessionsResponseDto extends ApiResponse<
+  ChatSessionResponseDto[]
+> {}
 export class GetSessionResponseDto extends ApiResponse<SessionWithMessagesResponseDto> {}
 export class AskQuestionApiResponseDto extends ApiResponse<AskQuestionResponseDto> {}
 export class DeleteSessionResponseDto extends ApiResponse<null> {}

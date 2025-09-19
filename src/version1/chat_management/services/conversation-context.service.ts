@@ -15,7 +15,7 @@ export interface ConversationState {
     performanceIssues: Set<string>;
   };
   lastResponseType: string;
-  conversationFlow: Array<{ 
+  conversationFlow: Array<{
     query: string;
     classification: QueryType;
     timestamp: Date;
@@ -54,7 +54,7 @@ export class ConversationContextService {
     query: string,
     classification: QueryClassification,
     responseContent: any,
-    contextUsed: string[]
+    contextUsed: string[],
   ): ConversationState {
     let state = this.conversationStates.get(sessionId);
     if (!state) {
@@ -62,7 +62,10 @@ export class ConversationContextService {
     }
 
     // Ensure responseContent is a string
-    const responseString = typeof responseContent === 'string' ? responseContent : String(responseContent || '');
+    const responseString =
+      typeof responseContent === 'string'
+        ? responseContent
+        : String(responseContent || '');
 
     // Update discussed topics
     this.extractAndAddTopics(state, query, responseString);
@@ -100,7 +103,7 @@ export class ConversationContextService {
 
   generateContextualPromptEnhancement(
     sessionId: string,
-    currentQuery: string
+    currentQuery: string,
   ): string {
     const state = this.conversationStates.get(sessionId);
     if (!state) {
@@ -120,7 +123,7 @@ export class ConversationContextService {
     // Add conversation flow patterns
     if (state.conversationFlow.length > 1) {
       const recentFlow = state.conversationFlow.slice(-3);
-      enhancement += `- Recent question pattern: ${recentFlow.map(f => f.classification).join(' → ')}\n`;
+      enhancement += `- Recent question pattern: ${recentFlow.map((f) => f.classification).join(' → ')}\n`;
     }
 
     // Add specific entities context
@@ -136,16 +139,25 @@ export class ConversationContextService {
     enhancement += '\n**Response Guidelines:**\n';
 
     if (this.isRepeatingQuestion(state, currentQuery)) {
-      enhancement += '- This question is similar to previous ones. Provide NEW specific information or a different perspective.\n';
+      enhancement +=
+        '- This question is similar to previous ones. Provide NEW specific information or a different perspective.\n';
     }
 
-    if (state.conversationFlow.length > 3 && state.currentFocus === state.conversationFlow[state.conversationFlow.length - 2]?.classification) {
-      enhancement += '- User is deep-diving into this topic. Provide more detailed, technical information.\n';
+    if (
+      state.conversationFlow.length > 3 &&
+      state.currentFocus ===
+        state.conversationFlow[state.conversationFlow.length - 2]
+          ?.classification
+    ) {
+      enhancement +=
+        '- User is deep-diving into this topic. Provide more detailed, technical information.\n';
     }
 
     enhancement += `- Adapt complexity to ${state.userKnowledgeLevel} level\n`;
-    enhancement += '- Reference specific code sections, line numbers, and exact reviewer quotes when possible\n';
-    enhancement += '- Avoid repeating information already provided in this conversation\n';
+    enhancement +=
+      '- Reference specific code sections, line numbers, and exact reviewer quotes when possible\n';
+    enhancement +=
+      '- Avoid repeating information already provided in this conversation\n';
 
     return enhancement;
   }
@@ -153,7 +165,7 @@ export class ConversationContextService {
   generateAdaptiveFollowups(
     sessionId: string,
     currentClassification: QueryType,
-    contextData: any
+    contextData: any,
   ): string[] {
     const state = this.conversationStates.get(sessionId);
     if (!state) {
@@ -165,21 +177,32 @@ export class ConversationContextService {
 
     // Generate followups based on undiscussed areas
     if (!discussedTopics.includes('files') && contextData?.files) {
-      followups.push(`What specific files should I focus on reviewing? (${contextData.files.total_files} files changed)`);
+      followups.push(
+        `What specific files should I focus on reviewing? (${contextData.files.total_files} files changed)`,
+      );
     }
 
-    if (!discussedTopics.includes('security') && contextData?.summary?.security_concerns?.length > 0) {
+    if (
+      !discussedTopics.includes('security') &&
+      contextData?.summary?.security_concerns?.length > 0
+    ) {
       followups.push(`Are there any security vulnerabilities in this PR?`);
     }
 
-    if (!discussedTopics.includes('reviews') && contextData?.reviews?.total_reviews > 0) {
+    if (
+      !discussedTopics.includes('reviews') &&
+      contextData?.reviews?.total_reviews > 0
+    ) {
       const reviewStates = contextData.reviews.summary;
       if (reviewStates.changes_requested_count > 0) {
         followups.push(`What specific changes did reviewers request?`);
       }
     }
 
-    if (!discussedTopics.includes('performance') && contextData?.summary?.performance_issues?.length > 0) {
+    if (
+      !discussedTopics.includes('performance') &&
+      contextData?.summary?.performance_issues?.length > 0
+    ) {
       followups.push(`What performance implications does this PR have?`);
     }
 
@@ -187,14 +210,20 @@ export class ConversationContextService {
     if (state.userKnowledgeLevel === 'expert' && contextData?.files) {
       const largestFile = contextData.files.files?.[0];
       if (largestFile) {
-        followups.push(`Can you analyze the changes in ${largestFile.filename}?`);
+        followups.push(
+          `Can you analyze the changes in ${largestFile.filename}?`,
+        );
       }
     }
 
     // Fill remaining slots with context-specific questions
     while (followups.length < 3) {
-      const remaining = this.getContextSpecificFollowups(currentClassification, contextData, discussedTopics);
-      const newFollowup = remaining.find(q => !followups.includes(q));
+      const remaining = this.getContextSpecificFollowups(
+        currentClassification,
+        contextData,
+        discussedTopics,
+      );
+      const newFollowup = remaining.find((q) => !followups.includes(q));
       if (newFollowup) {
         followups.push(newFollowup);
       } else {
@@ -205,61 +234,95 @@ export class ConversationContextService {
     return followups.slice(0, 3);
   }
 
-  private extractAndAddTopics(state: ConversationState, query: string, response: string): void {
+  private extractAndAddTopics(
+    state: ConversationState,
+    query: string,
+    response: string,
+  ): void {
     const queryLower = query.toLowerCase();
     const responseLower = response.toLowerCase();
 
     // Extract topics from keywords
     const topicKeywords = {
-      'files': ['file', 'files', 'changed', 'modified', 'added', 'deleted'],
-      'security': ['security', 'vulnerable', 'exploit', 'auth', 'permission'],
-      'performance': ['performance', 'slow', 'optimization', 'memory', 'cpu'],
-      'reviews': ['review', 'reviewer', 'feedback', 'comment', 'approve'],
-      'tests': ['test', 'testing', 'coverage', 'unit test', 'integration'],
-      'documentation': ['docs', 'documentation', 'readme', 'comment'],
-      'architecture': ['architecture', 'design', 'pattern', 'structure'],
+      files: ['file', 'files', 'changed', 'modified', 'added', 'deleted'],
+      security: ['security', 'vulnerable', 'exploit', 'auth', 'permission'],
+      performance: ['performance', 'slow', 'optimization', 'memory', 'cpu'],
+      reviews: ['review', 'reviewer', 'feedback', 'comment', 'approve'],
+      tests: ['test', 'testing', 'coverage', 'unit test', 'integration'],
+      documentation: ['docs', 'documentation', 'readme', 'comment'],
+      architecture: ['architecture', 'design', 'pattern', 'structure'],
     };
 
     Object.entries(topicKeywords).forEach(([topic, keywords]) => {
-      if (keywords.some(keyword => queryLower.includes(keyword) || responseLower.includes(keyword))) {
+      if (
+        keywords.some(
+          (keyword) =>
+            queryLower.includes(keyword) || responseLower.includes(keyword),
+        )
+      ) {
         state.discussedTopics.add(topic);
       }
     });
   }
 
-  private updateUserKnowledgeLevel(state: ConversationState, query: string): void {
+  private updateUserKnowledgeLevel(
+    state: ConversationState,
+    query: string,
+  ): void {
     const queryLower = query.toLowerCase();
 
     // Technical indicators suggest higher knowledge level
     const expertIndicators = [
-      'implementation', 'architecture', 'design pattern', 'algorithm',
-      'complexity', 'performance optimization', 'memory leak', 'thread safety'
+      'implementation',
+      'architecture',
+      'design pattern',
+      'algorithm',
+      'complexity',
+      'performance optimization',
+      'memory leak',
+      'thread safety',
     ];
 
     // Basic indicators suggest beginner level
     const beginnerIndicators = [
-      'what is', 'how to', 'help me understand', 'explain', 'basic'
+      'what is',
+      'how to',
+      'help me understand',
+      'explain',
+      'basic',
     ];
 
-    if (expertIndicators.some(indicator => queryLower.includes(indicator))) {
+    if (expertIndicators.some((indicator) => queryLower.includes(indicator))) {
       state.userKnowledgeLevel = 'expert';
-    } else if (beginnerIndicators.some(indicator => queryLower.includes(indicator))) {
+    } else if (
+      beginnerIndicators.some((indicator) => queryLower.includes(indicator))
+    ) {
       state.userKnowledgeLevel = 'beginner';
     }
     // Keep intermediate as default
   }
 
-  private updateSpecificEntities(state: ConversationState, query: string, response: string): void {
+  private updateSpecificEntities(
+    state: ConversationState,
+    query: string,
+    response: string,
+  ): void {
     // Extract file names
-    const fileMatches = (query + ' ' + response).match(/(\w+\.(js|ts|py|java|cpp|c|h|css|html|json|xml|yml|yaml|md))/gi);
+    const fileMatches = (query + ' ' + response).match(
+      /(\w+\.(js|ts|py|java|cpp|c|h|css|html|json|xml|yml|yaml|md))/gi,
+    );
     if (fileMatches) {
-      fileMatches.forEach(file => state.specificEntitiesDiscussed.files.add(file));
+      fileMatches.forEach((file) =>
+        state.specificEntitiesDiscussed.files.add(file),
+      );
     }
 
     // Extract reviewer mentions
     const reviewerMatches = (query + ' ' + response).match(/@(\w+)/g);
     if (reviewerMatches) {
-      reviewerMatches.forEach(reviewer => state.specificEntitiesDiscussed.reviewers.add(reviewer.substring(1)));
+      reviewerMatches.forEach((reviewer) =>
+        state.specificEntitiesDiscussed.reviewers.add(reviewer.substring(1)),
+      );
     }
   }
 
@@ -269,10 +332,10 @@ export class ConversationContextService {
 
     const topicPatterns = {
       'code-analysis': /code|implementation|function|class|method/,
-      'security': /security|vulnerable|exploit|auth/,
-      'performance': /performance|slow|optimization|memory/,
-      'testing': /test|testing|coverage/,
-      'documentation': /docs|documentation|readme/,
+      security: /security|vulnerable|exploit|auth/,
+      performance: /performance|slow|optimization|memory/,
+      testing: /test|testing|coverage/,
+      documentation: /docs|documentation|readme/,
     };
 
     Object.entries(topicPatterns).forEach(([topic, pattern]) => {
@@ -284,12 +347,18 @@ export class ConversationContextService {
     return topics;
   }
 
-  private isRepeatingQuestion(state: ConversationState, currentQuery: string): boolean {
+  private isRepeatingQuestion(
+    state: ConversationState,
+    currentQuery: string,
+  ): boolean {
     const currentQueryLower = currentQuery.toLowerCase();
     const threshold = 0.7; // Similarity threshold
 
-    return state.answeredQuestions.some(previousQuery => {
-      const similarity = this.calculateStringSimilarity(currentQueryLower, previousQuery);
+    return state.answeredQuestions.some((previousQuery) => {
+      const similarity = this.calculateStringSimilarity(
+        currentQueryLower,
+        previousQuery,
+      );
       return similarity > threshold;
     });
   }
@@ -323,7 +392,7 @@ export class ConversationContextService {
           matrix[i][j] = Math.min(
             matrix[i - 1][j - 1] + 1,
             matrix[i][j - 1] + 1,
-            matrix[i - 1][j] + 1
+            matrix[i - 1][j] + 1,
           );
         }
       }
@@ -337,48 +406,48 @@ export class ConversationContextService {
       [QueryType.SUMMARY]: [
         'What files were changed in this PR?',
         'What did reviewers say about this PR?',
-        'Are there any security concerns?'
+        'Are there any security concerns?',
       ],
       [QueryType.CODE_ANALYSIS]: [
         'Show me the largest code changes',
         'What are the main implementation details?',
-        'Are there any potential bugs in the changes?'
+        'Are there any potential bugs in the changes?',
       ],
       [QueryType.REVIEWS]: [
         'What specific feedback did reviewers provide?',
         'Has this PR been approved?',
-        'Are there any unresolved review comments?'
+        'Are there any unresolved review comments?',
       ],
       [QueryType.SECURITY]: [
         'What specific security issues were found?',
         'How can these security concerns be addressed?',
-        'Are there any authentication-related changes?'
+        'Are there any authentication-related changes?',
       ],
       [QueryType.PERFORMANCE]: [
         'What performance optimizations are recommended?',
         'Are there any bottlenecks in the code?',
-        'How does this impact system performance?'
+        'How does this impact system performance?',
       ],
       [QueryType.FILES]: [
         'Show me the files with the most changes',
         'What programming languages are used?',
-        'Are there any configuration files changed?'
+        'Are there any configuration files changed?',
       ],
       [QueryType.TESTS]: [
         'What types of tests should be added?',
         'Is there adequate test coverage?',
-        'Are there any edge cases to consider?'
+        'Are there any edge cases to consider?',
       ],
       [QueryType.TIMELINE]: [
         'When was this PR created?',
         'When was it last updated?',
-        'What is the review timeline?'
+        'What is the review timeline?',
       ],
       [QueryType.GENERAL]: [
         'What is this PR about?',
         'Who authored this PR?',
-        'What is the current status?'
-      ]
+        'What is the current status?',
+      ],
     };
 
     return fallbackMap[classification] || fallbackMap[QueryType.GENERAL];
@@ -387,31 +456,42 @@ export class ConversationContextService {
   private getContextSpecificFollowups(
     classification: QueryType,
     contextData: any,
-    discussedTopics: string[]
+    discussedTopics: string[],
   ): string[] {
     const followups: string[] = [];
 
     // Add specific followups based on actual PR data
     if (contextData?.files && !discussedTopics.includes('files')) {
-      const totalChanges = contextData.files.summary?.total_additions + contextData.files.summary?.total_deletions;
-      followups.push(`This PR has ${totalChanges} total changes. Should I focus on any specific areas?`);
+      const totalChanges =
+        contextData.files.summary?.total_additions +
+        contextData.files.summary?.total_deletions;
+      followups.push(
+        `This PR has ${totalChanges} total changes. Should I focus on any specific areas?`,
+      );
     }
 
     if (contextData?.reviews && !discussedTopics.includes('reviews')) {
       const approvedCount = contextData.reviews.summary?.approved_count || 0;
-      const changesRequestedCount = contextData.reviews.summary?.changes_requested_count || 0;
+      const changesRequestedCount =
+        contextData.reviews.summary?.changes_requested_count || 0;
 
       if (changesRequestedCount > 0) {
-        followups.push(`${changesRequestedCount} reviewers requested changes. What are the main concerns?`);
+        followups.push(
+          `${changesRequestedCount} reviewers requested changes. What are the main concerns?`,
+        );
       } else if (approvedCount > 0) {
-        followups.push(`${approvedCount} reviewers approved this. What did they like about it?`);
+        followups.push(
+          `${approvedCount} reviewers approved this. What did they like about it?`,
+        );
       }
     }
 
     if (contextData?.summary && !discussedTopics.includes('quality')) {
       const score = contextData.summary.overall_score;
       if (score < 7) {
-        followups.push(`The overall code quality score is ${score}/10. What are the main issues?`);
+        followups.push(
+          `The overall code quality score is ${score}/10. What are the main issues?`,
+        );
       }
     }
 

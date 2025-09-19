@@ -65,7 +65,7 @@ export class ChatSession {
 
   @OneToMany(() => ChatMessage, (chatMessage) => chatMessage.chatSession)
   messages: ChatMessage[];
-  
+
   @OneToOne(() => PrSummary, (prSummary) => prSummary.chatSession)
   summary: PrSummary;
 }

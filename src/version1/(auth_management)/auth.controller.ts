@@ -25,11 +25,10 @@ import { ConfigService } from '@nestjs/config';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService,
-private readonly configService: ConfigService
-
-) {}
-
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @HttpCode(HttpStatus.OK)
   @Post()
@@ -97,7 +96,7 @@ private readonly configService: ConfigService
   @UseGuards(GoogleOAuthGuard)
   async googleAuthRedirect(@Req() req: Request, @Res() res: Response) {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL');
-    
+
     try {
       const user = req.user as any;
       return this.authService.googleLogin(user, res);
