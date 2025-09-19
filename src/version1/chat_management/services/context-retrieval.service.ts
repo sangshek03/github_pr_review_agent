@@ -10,6 +10,7 @@ import { GithubPrReview } from '../../pr_management/github-pr-reviews/github-pr-
 import { PrComment } from '../../pr_management/pr-comments/pr-comments.entity';
 import { PrSummary } from '../../pr_management/pr-summary/pr-summary.entity';
 import { PRCommit } from '../../pr_management/pr-commits/pr-commits.entity';
+import { ChatMessage } from '../chat-messages/chat-messages.entity';
 
 @Injectable()
 export class ContextRetrievalService {
@@ -36,7 +37,8 @@ export class ContextRetrievalService {
 
   async getContextForQuery(
     classification: QueryClassification,
-    sessionId: string
+    sessionId: string,
+    conversation_history: ChatMessage[]
   ): Promise<{
     context_data: any;
     context_sources: string[];

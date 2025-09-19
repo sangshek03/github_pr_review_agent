@@ -225,25 +225,30 @@ export class ChatSessionService {
         askQuestionDto.question
       );
 
-      // Classify the query
+      // Get conversation history first
+      const conversationHistory = await this.getRecentConversationHistory(sessionId);
+
+      // Classify the query with conversation context
       let classification: QueryClassification;
       try {
-        // Try rule-based classification first
-        classification = this.queryClassifierService.classifyQueryRuleBased(askQuestionDto.question) ||
-          await this.queryClassifierService.classifyQuery(askQuestionDto.question);
+        // Try context-aware rule-based classification first
+        classification = await this.queryClassifierService.classifyWithContext(
+          askQuestionDto.question,
+          conversationHistory
+        );
       } catch (classificationError) {
         this.logger.warn('Classification failed, using LLM fallback:', classificationError);
         classification = await this.chatLlmService.classifyQuery(askQuestionDto.question);
       }
 
-      // Get relevant context
+      // Get relevant context with conversation history
       const { context_data, context_sources } = await this.contextRetrievalService.getContextForQuery(
         classification,
-        sessionId
+        sessionId,
+        conversationHistory
       );
 
-      // Get conversation history
-      const conversationHistory = await this.getRecentConversationHistory(sessionId);
+      // Conversation history already retrieved above
 
       // Prepare LLM request
       const llmRequest: ChatLLMRequest = {
@@ -385,11 +390,77 @@ export class ChatSessionService {
     sessionId: string,
     limit: number = 10
   ): Promise<ChatMessage[]> {
-    return await this.chatMessageRepo.find({
+    const messages = await this.chatMessageRepo.find({
       where: { chatSession: { session_id: sessionId } },
       order: { created_at: 'DESC' },
       take: limit,
     });
+
+    // Return in chronological order for better context understanding
+    return messages.reverse();
+  }
+
+  private analyzeConversationContext(messages: ChatMessage[]): {
+    lastTopic?: string;
+    discussedFiles?: string[];
+    userInterests?: string[];
+    isRepetitive?: boolean;
+  } {
+    if (!messages || messages.length === 0) {
+      return {};
+    }
+
+    const recentUserMessages = messages
+      .filter(m => m.sender_type === 'user')
+      .slice(-3)
+      .map(m => m.message_content.toLowerCase());
+
+    const lastBotMessage = messages
+      .reverse()
+      .find(m => m.sender_type === 'bot');
+
+    const userInterests = [];
+    const discussedFiles = [];
+
+    recentUserMessages.forEach(msg => {
+      if (msg.includes('improve') || msg.includes('better') || msg.includes('enhance')) {
+        userInterests.push('improvement');
+      }
+      if (msg.includes('security')) {
+        userInterests.push('security');
+      }
+      if (msg.includes('test')) {
+        userInterests.push('testing');
+      }
+
+      // Extract mentioned files
+      const fileMatches = msg.match(/\w+\.(js|ts|py|java|cpp|c|h|css|html|json|xml|yml|yaml|md)/gi);
+      if (fileMatches) {
+        discussedFiles.push(...fileMatches);
+      }
+    });
+
+    // Check for repetitive questions
+    const isRepetitive = recentUserMessages.length > 1 &&
+      recentUserMessages.some((msg, index) =>
+        recentUserMessages.slice(index + 1).some(otherMsg =>
+          this.calculateSimilarity(msg, otherMsg) > 0.7
+        )
+      );
+
+    return {
+      lastTopic: lastBotMessage?.query_classification,
+      discussedFiles: [...new Set(discussedFiles)],
+      userInterests: [...new Set(userInterests)],
+      isRepetitive
+    };
+  }
+
+  private calculateSimilarity(str1: string, str2: string): number {
+    const words1 = str1.split(' ');
+    const words2 = str2.split(' ');
+    const intersection = words1.filter(word => words2.includes(word));
+    return intersection.length / Math.max(words1.length, words2.length);
   }
 
   private async updateSessionActivity(sessionId: string): Promise<void> {

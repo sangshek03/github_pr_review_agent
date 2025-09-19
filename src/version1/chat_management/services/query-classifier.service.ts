@@ -12,6 +12,10 @@ export class QueryClassifierService {
       /overview.*pr/i,
       /tell me about.*pr/i,
       /what.*pr.*do/i,
+      /explain/i,
+      /describe/i,
+      /tell.*about/i,
+      /what.*this/i,
     ],
     [QueryType.CODE_ANALYSIS]: [
       /show.*code/i,
@@ -21,6 +25,16 @@ export class QueryClassifierService {
       /implementation/i,
       /show.*function/i,
       /class.*method/i,
+      /improve/i,
+      /better/i,
+      /enhance/i,
+      /fix/i,
+      /optimize/i,
+      /refactor/i,
+      /areas.*improve/i,
+      /where.*improve/i,
+      /make.*plan/i,
+      /plan.*improve/i,
     ],
     [QueryType.REVIEWS]: [
       /review.*comment/i,
@@ -171,7 +185,29 @@ export class QueryClassifierService {
     };
   }
 
-  // Rule-based classification for high-confidence patterns
+  // Enhanced rule-based classification with conversation context
+  classifyQueryRuleBased(query: string, conversationHistory?: any[]): QueryClassification | null {
+    const lowerQuery = query.toLowerCase().trim();
+
+    // Handle greetings with context from conversation
+    if (this.isGreeting(lowerQuery) && conversationHistory && conversationHistory.length > 0) {
+      const lastTopic = this.extractLastTopic(conversationHistory);
+      return {
+        primary_type: lastTopic || QueryType.SUMMARY,
+        confidence: 0.8,
+        context_needed: ['metadata', 'summary', 'files'],
+      };
+    }
+
+    // Improvement-related queries
+    if (lowerQuery.includes('improve') || lowerQuery.includes('areas') || lowerQuery.includes('plan')) {
+      return {
+        primary_type: QueryType.CODE_ANALYSIS,
+        confidence: 0.9,
+        context_needed: ['metadata', 'summary', 'files'],
+      };
+    }
+
   classifyQueryRuleBased(query: string): QueryClassification | null {
     const lowerQuery = query.toLowerCase();
 
@@ -201,5 +237,39 @@ export class QueryClassifierService {
     }
 
     return null;
+  }
+
+  private isGreeting(query: string): boolean {
+    const greetingPatterns = [
+      /^h(i|ey|ello)/i,
+      /^good (morning|afternoon|evening)/i,
+      /^how.*you/i,
+    ];
+    return greetingPatterns.some(pattern => pattern.test(query));
+  }
+
+  private extractLastTopic(conversationHistory: any[]): QueryType | undefined {
+    for (let i = conversationHistory.length - 1; i >= 0; i--) {
+      const message = conversationHistory[i];
+      if (message.query_classification && message.sender_type === 'bot') {
+        return message.query_classification as QueryType;
+      }
+    }
+    return undefined;
+  }
+
+  // Enhanced classification with conversation context
+  async classifyWithContext(
+    query: string,
+    conversationHistory: any[] = []
+  ): Promise<QueryClassification> {
+    // Try rule-based classification first with context
+    const ruleBasedResult = this.classifyQueryRuleBased(query, conversationHistory);
+    if (ruleBasedResult) {
+      return ruleBasedResult;
+    }
+
+    // Fall back to regular classification
+    return await this.classifyQuery(query);
   }
 }
