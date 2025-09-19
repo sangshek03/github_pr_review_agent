@@ -28,7 +28,7 @@ export enum PrState {
   MERGED = 'merged',
 }
 
-@Entity({ schema: 'githubagent', name: 'pr_metadata' })
+@Entity({ name: 'pr_metadata' })
 @Unique(['repository', 'pr_number'])
 @Index(['github_pr_id'])
 @Index(['pr_number'])
@@ -125,7 +125,6 @@ export class PrMetadata {
 
   @ManyToMany(() => PrLabel, (prLabel) => prLabel.prMetadata)
   @JoinTable({
-    schema: 'githubagent',
     name: 'pr_metadata_labels',
     joinColumn: { name: 'pr_metadata_id', referencedColumnName: 'pr_metadata_id' },
     inverseJoinColumn: { name: 'pr_label_id', referencedColumnName: 'pr_label_id' }
@@ -134,7 +133,6 @@ export class PrMetadata {
 
   @ManyToMany(() => GithubUser)
   @JoinTable({
-    schema: 'githubagent',
     name: 'pr_assignees',
     joinColumn: { name: 'pr_metadata_id', referencedColumnName: 'pr_metadata_id' },
     inverseJoinColumn: { name: 'github_user_id', referencedColumnName: 'github_user_id' }

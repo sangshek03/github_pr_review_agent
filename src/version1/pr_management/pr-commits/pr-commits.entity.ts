@@ -13,7 +13,7 @@ import { PRReview } from '../pr-reviews/pr-reviews.entity';
 import { PrMetadata } from '../pr-metadata/pr-metadata.entity';
 import { GithubUser } from '../github-users/github-users.entity';
 
-@Entity({ schema: 'githubagent', name: 'pr_commits' })
+@Entity({  name: 'pr_commits' })
 export class PRCommit {
   @PrimaryGeneratedColumn('uuid')
   pr_commit_id: string;

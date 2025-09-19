@@ -11,7 +11,7 @@ import {
 import { PRReview } from '../pr-reviews/pr-reviews.entity';
 import { PrMetadata } from '../pr-metadata/pr-metadata.entity';
 
-@Entity({ schema: 'githubagent', name: 'repositories' })
+@Entity({ name: 'repositories' })
 export class Repository {
   @PrimaryGeneratedColumn('uuid')
   repository_id: string;

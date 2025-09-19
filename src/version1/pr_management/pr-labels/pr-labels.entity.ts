@@ -14,7 +14,7 @@ import {
 import { PrMetadata } from '../pr-metadata/pr-metadata.entity';
 import { Repository } from '../repositories/repositories.entity';
 
-@Entity({ schema: 'githubagent', name: 'pr_labels' })
+@Entity({ name: 'pr_labels' })
 @Unique(['repository', 'name'])
 @Index(['name'])
 @Index(['color'])

@@ -18,7 +18,7 @@ export enum CommentSide {
   RIGHT = 'RIGHT',
 }
 
-@Entity({ schema: 'githubagent', name: 'pr_comments' })
+@Entity({ name: 'pr_comments' })
 @Unique(['github_comment_id'])
 @Index(['github_comment_id'])
 @Index(['path'])

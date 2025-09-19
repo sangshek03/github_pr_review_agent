@@ -21,10 +21,15 @@ import {
 import { Request, Response } from 'express';
 import { AccessTokenGuard } from './guards/access-token.guard';
 import { GoogleOAuthGuard } from './guards/google-oauth.guard';
+import { ConfigService } from '@nestjs/config';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService,
+private readonly configService: ConfigService
+
+) {}
+
 
   @HttpCode(HttpStatus.OK)
   @Post()
@@ -91,12 +96,14 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(GoogleOAuthGuard)
   async googleAuthRedirect(@Req() req: Request, @Res() res: Response) {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+    
     try {
       const user = req.user as any;
       return this.authService.googleLogin(user, res);
     } catch (error) {
       console.error('Google OAuth callback error:', error);
-      return res.redirect('http://localhost:3000/auth?status=failed');
+      return res.redirect(`${frontendUrl}/auth?status=failed`);
     }
   }
 }

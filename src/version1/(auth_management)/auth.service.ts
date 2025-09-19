@@ -19,6 +19,7 @@ import { Response } from 'express';
 import { User } from '../user_management/users/users.entity';
 import { AuthProvider, AuthProviderType } from './auth-providers/auth-providers.entity';
 import { EncryptionUtil } from '../../utils/encryption.util';
+import { ConfigService } from '@nestjs/config';
 
 export interface GoogleUserData {
   googleId: string;
@@ -35,6 +36,7 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(AuthProvider)
@@ -252,8 +254,8 @@ export class AuthService {
       sameSite: 'strict',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
-
-    return res.redirect('http://localhost:3000/dashboard');
+const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+    return res.redirect(`${frontendUrl}/dashboard`);
   }
 
   private async generateTokens(userId: string) {

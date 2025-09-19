@@ -22,7 +22,7 @@ export enum SenderType {
   BOT = 'bot',
 }
 
-@Entity({ schema: 'githubagent', name: 'chat_messages' })
+@Entity({ name: 'chat_messages' })
 @Index(['chatSession'])
 @Index(['sender_type'])
 @Index(['created_at'])

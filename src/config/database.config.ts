@@ -1,18 +1,14 @@
-import { ConfigService, registerAs } from '@nestjs/config';
-
-const configService = new ConfigService();
+import { registerAs } from '@nestjs/config';
 
 export default registerAs('database', () => ({
-  type: 'postgres',
-  host: configService.get('DB_HOST'),
-  port: configService.get('DB_PORT'),
-  username: configService.get('DB_USER'),
-  password: configService.get('DB_PASSWORD'),
-  database: configService.get('DB_NAME'),
-  schema: configService.get('DB_SCHEMA'),
+  type: 'postgres' as const,
+  url: process.env.DATABASE_URL, // neon connection string
+  schema: process.env.DB_SCHEMA,
+  username: process.env.DB_USER,
   entities: [__dirname + '/../**/*.entity{.ts,.js}'],
   synchronize: process.env.NODE_ENV === 'development',
   logging: process.env.NODE_ENV === 'development',
   migrations: [__dirname + '/../../db/migrations/*{.ts,.js}'],
   migrationsTableName: 'migrations',
+  ssl: false, // required for neon
 }));

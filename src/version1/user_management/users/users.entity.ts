@@ -12,7 +12,7 @@ import { AuthProvider } from '../../(auth_management)/auth-providers/auth-provid
 import { GithubUser } from '../../pr_management/github-users/github-users.entity';
 
 // users.entity.ts
-@Entity({ schema: 'githubagent', name: 'users' })
+@Entity({ name: 'users' })
 export class User {
   @PrimaryGeneratedColumn('uuid')
   user_id: string;

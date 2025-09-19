@@ -22,7 +22,7 @@ export enum FileChangeType {
   COPIED = 'copied',
 }
 
-@Entity({ schema: 'githubagent', name: 'pr_files' })
+@Entity({ name: 'pr_files' })
 export class PRFile {
   @PrimaryGeneratedColumn('uuid')
   pr_file_id: string;

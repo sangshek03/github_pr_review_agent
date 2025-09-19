@@ -21,7 +21,7 @@ export enum GithubReviewState {
   PENDING = 'PENDING',
 }
 
-@Entity({ schema: 'githubagent', name: 'github_pr_reviews' })
+@Entity({ name: 'github_pr_reviews' })
 @Unique(['github_review_id'])
 @Index(['github_review_id'])
 @Index(['state'])

@@ -8,15 +8,13 @@ const configService = new ConfigService();
 
 export default new DataSource({
   type: 'postgres',
-  host: configService.get('DB_HOST'),
-  port: configService.get('DB_PORT'),
-  username: configService.get('DB_USER'),
-  password: configService.get('DB_PASSWORD'),
-  database: configService.get('DB_NAME'),
+  url: configService.get<string>('DATABASE_URL'),
   schema: configService.get('DB_SCHEMA'),
+  username: configService.get('DB_USER'),
   entities: [`${__dirname}/../src/version1/**/*.entity{.ts,.js}`],
-  synchronize: configService.get('nodenv') === 'development',
-  logging: configService.get('nodenv') === 'development',
+  synchronize: configService.get('NODE_ENV') === 'development',
+  logging: configService.get('NODE_ENV') === 'development',
   migrations: [`${__dirname}/migrations/*{.ts,.js}`],
   migrationsTableName: 'migrations',
+  ssl: false, // Neon requires SSL
 });
