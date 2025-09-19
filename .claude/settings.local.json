@@ -4,7 +4,8 @@
       "Read(//e/Evobi/tinkerbunker_backend/**)",
       "Bash(npm install:*)",
       "Bash(npm run build:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(rm:*)"
     ],
     "deny": [],
     "ask": []
